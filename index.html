@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-Frame-Options" content="ALLOWALL">
+<title>Yellow Wood Recovery — Competency Tracker</title>
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+:root {
+  --navy:#0f2744;--blue:#1a4f8a;--mid:#2563a8;--accent:#3b9eff;
+  --green:#10b981;--amber:#f59e0b;--red:#ef4444;
+  --surface:#f8fafd;--card:#fff;--border:#e2e8f0;
+  --text:#0f172a;--muted:#64748b;--light:#f1f5f9;--row:#f0f6ff;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);min-height:100vh;}
+
+/* ── AUTH ── */
+.auth-wrap{min-height:100vh;display:flex;background:linear-gradient(135deg,var(--navy),var(--blue));}
+.auth-left{flex:1;display:flex;flex-direction:column;justify-content:center;padding:60px;color:#fff;}
+.auth-left .logo{font-size:11px;font-weight:700;letter-spacing:3px;color:var(--accent);text-transform:uppercase;margin-bottom:32px;}
+.auth-left h1{font-size:40px;font-weight:700;line-height:1.2;margin-bottom:16px;}
+.auth-left p{font-size:15px;color:rgba(255,255,255,.65);line-height:1.7;max-width:360px;}
+.auth-right{width:480px;background:#fff;display:flex;flex-direction:column;justify-content:center;padding:60px 48px;}
+.auth-right h2{font-size:24px;font-weight:700;color:var(--navy);margin-bottom:6px;}
+.auth-right .sub{font-size:14px;color:var(--muted);margin-bottom:32px;}
+.fg{margin-bottom:16px;}
+.fg label{display:block;font-size:11px;font-weight:600;letter-spacing:.5px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+.fg input,.fg select{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;color:var(--text);outline:none;transition:border-color .2s;}
+.fg input:focus,.fg select:focus{border-color:var(--mid);}
+.btn-primary{width:100%;padding:13px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;}
+.btn-primary:hover{background:var(--blue);}
+.switch-link{text-align:center;margin-top:18px;font-size:13px;color:var(--muted);}
+.switch-link a{color:var(--mid);cursor:pointer;font-weight:500;}
+.err{background:#fef2f2;border:1px solid #fecaca;color:#dc2626;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;display:none;}
+.info-box{background:#f0f6ff;border:1px solid #c7d8f0;border-radius:8px;padding:12px 14px;margin-top:14px;font-size:12px;color:var(--navy);line-height:1.8;}
+
+/* ── SETUP BANNER ── */
+.setup-banner{background:#fef3c7;border-bottom:2px solid var(--amber);padding:12px 24px;font-size:13px;color:#92400e;display:flex;align-items:center;gap:10px;}
+.setup-banner strong{font-weight:700;}
+.setup-banner a{color:var(--mid);font-weight:600;}
+
+/* ── APP SHELL ── */
+.app{display:flex;min-height:100vh;}
+.sidebar{width:240px;background:var(--navy);color:#fff;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;}
+.sidebar-logo{padding:24px 20px;border-bottom:1px solid rgba(255,255,255,.08);}
+.brand{font-size:13px;font-weight:700;color:#fff;line-height:1.4;}
+.brand span{color:var(--accent);display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:500;margin-bottom:2px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:13px;font-weight:500;color:rgba(255,255,255,.6);cursor:pointer;border-left:3px solid transparent;transition:all .15s;}
+.nav-item:hover{color:#fff;background:rgba(255,255,255,.05);}
+.nav-item.active{color:#fff;background:rgba(59,158,255,.12);border-left-color:var(--accent);}
+.sidebar-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,.08);margin-top:auto;}
+.user-chip{display:flex;align-items:center;gap:10px;}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--navy);flex-shrink:0;}
+.uname{font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.urole{font-size:11px;color:rgba(255,255,255,.5);}
+.logout-btn{background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:18px;padding:4px;margin-left:auto;}
+.logout-btn:hover{color:#fff;}
+.main{margin-left:240px;flex:1;}
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:0 32px;height:64px;display:flex;align-items:center;position:sticky;top:0;z-index:50;}
+.topbar h1{font-size:18px;font-weight:700;color:var(--navy);}
+.page{padding:32px;display:none;}
+.page.active{display:block;}
+
+/* ── STATS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;}
+.stat-card{background:#fff;border-radius:12px;padding:20px 24px;border:1px solid var(--border);}
+.stat-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;}
+.stat-val{font-size:32px;font-weight:700;color:var(--navy);}
+.stat-sub{font-size:12px;color:var(--muted);margin-top:4px;}
+
+/* ── CARD / TABLE ── */
+.card{background:#fff;border-radius:12px;border:1px solid var(--border);overflow:hidden;margin-bottom:20px;}
+.card-hdr{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.card-hdr h2{font-size:15px;font-weight:700;color:var(--navy);}
+.search{padding:8px 14px 8px 36px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;outline:none;width:220px;background:var(--surface);}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.b-green{background:#d1fae5;color:#065f46;}
+.b-amber{background:#fef3c7;color:#92400e;}
+.b-gray{background:#f1f5f9;color:#475569;}
+.b-blue{background:#dbeafe;color:#1d4ed8;}
+table{width:100%;border-collapse:collapse;}
+thead th{padding:10px 16px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);background:var(--surface);border-bottom:1px solid var(--border);}
+tbody tr{border-bottom:1px solid var(--border);cursor:pointer;}
+tbody tr:hover{background:var(--row);}
+tbody td{padding:13px 16px;font-size:13px;vertical-align:middle;}
+.pbar{height:6px;background:var(--light);border-radius:3px;min-width:80px;overflow:hidden;}
+.pfill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--mid),var(--accent));}
+.pfill.done{background:linear-gradient(90deg,#0ea5a0,var(--green));}
+.pfill.low{background:linear-gradient(90deg,var(--amber),#fbbf24);}
+
+/* ── PENDING CARDS ── */
+.pending-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;padding:20px 24px;}
+.pc{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;}
+.pc-name{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:4px;}
+.pc-sub{font-size:12px;color:var(--muted);margin-bottom:14px;}
+.pc-btn{width:100%;padding:9px;background:var(--mid);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+
+/* ── MY COMPS ── */
+.comp-card{background:#fff;border-radius:12px;border:1px solid var(--border);padding:24px;margin-bottom:16px;}
+.comp-card h3{font-size:16px;font-weight:700;color:var(--navy);margin-bottom:4px;}
+.comp-card .meta{font-size:12px;color:var(--muted);margin-bottom:16px;}
+
+/* ── FORM ── */
+.form-wrap{max-width:960px;padding-bottom:90px;}
+.sec-card{background:#fff;border-radius:12px;border:1px solid var(--border);margin-bottom:16px;overflow:hidden;}
+.sec-title{padding:14px 24px;font-size:13px;font-weight:700;color:var(--navy);border-bottom:1px solid var(--border);background:var(--surface);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:20px 24px;}
+.field label{display:block;font-size:11px;font-weight:600;letter-spacing:.5px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+.field input{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;color:var(--text);outline:none;}
+.field input:focus{border-color:var(--mid);}
+
+/* ── COMP TABLE ── */
+.ctbl{width:100%;border-collapse:collapse;}
+.ctbl thead th{position:sticky;top:64px;z-index:10;padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#fff;background:var(--navy);border:1px solid rgba(255,255,255,.1);}
+.ctbl thead th:nth-child(3),.ctbl thead th:nth-child(4){text-align:center;}
+.sec-row td{background:var(--mid);color:#fff;font-weight:700;font-size:12px;padding:8px 12px;border-top:2px solid rgba(255,255,255,.2);}
+.sec-row td em{font-weight:400;font-style:italic;opacity:.7;font-size:11px;margin-left:8px;}
+.crit-row td{padding:7px 12px;border:1px solid #e2e8f0;font-size:12px;vertical-align:middle;}
+.crit-row.even td{background:#fff;}
+.crit-row.odd td{background:var(--row);}
+.crit-row td:nth-child(2){text-align:center;font-size:10px;color:var(--muted);width:80px;}
+.crit-row td:nth-child(3),.crit-row td:nth-child(4){text-align:center;width:64px;}
+.rnum{color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;margin-right:4px;}
+.ccb{width:16px;height:16px;cursor:pointer;accent-color:var(--mid);}
+.legend{padding:10px 14px;background:var(--surface);border-top:1px solid var(--border);font-size:11px;color:var(--muted);}
+.legend b{color:var(--text);}
+
+/* ── VALIDATOR SECTION ── */
+.val-section{background:#fff;border-radius:12px;border:2px solid var(--mid);overflow:hidden;margin-bottom:16px;}
+.val-hdr{background:var(--mid);padding:14px 24px;}
+.val-hdr h3{color:#fff;font-size:14px;font-weight:700;}
+.val-hdr p{color:rgba(255,255,255,.75);font-size:12px;margin-top:2px;}
+.sig-box{border:1.5px dashed var(--border);border-radius:8px;height:70px;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted);font-style:italic;background:var(--surface);}
+.sig-box.signed{border-color:var(--green);background:#f0fdf4;color:var(--green);font-style:normal;font-weight:600;}
+
+/* ── BOTTOM BAR ── */
+.bbar{position:fixed;bottom:0;left:240px;right:0;background:#fff;border-top:1px solid var(--border);padding:14px 32px;display:none;align-items:center;justify-content:space-between;z-index:50;}
+.prog-sum{display:flex;align-items:center;gap:12px;}
+.prog-sum .cnt{font-size:14px;font-weight:700;color:var(--navy);}
+.prog-sum .lbl{font-size:13px;color:var(--muted);}
+.bigbar{width:200px;height:8px;background:var(--light);border-radius:4px;overflow:hidden;}
+.bigfill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--mid),var(--accent));transition:width .3s;}
+.btns{display:flex;gap:10px;}
+.btn-sec{padding:9px 20px;background:#fff;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--text);}
+.btn-save{padding:9px 20px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+.btn-back{display:flex;align-items:center;gap:6px;background:none;border:none;font-family:inherit;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;margin-bottom:16px;}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(15,39,68,.5);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal{background:#fff;border-radius:16px;width:460px;padding:32px;max-height:90vh;overflow-y:auto;}
+.modal h3{font-size:18px;font-weight:700;color:var(--navy);margin-bottom:8px;}
+.modal p{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:20px;}
+.modal-btns{display:flex;gap:10px;margin-top:20px;}
+.btn-cancel{flex:1;padding:11px;background:var(--light);border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:90px;right:32px;background:var(--navy);color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:300;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.ok{background:#065f46;}
+
+.success-banner{background:#f0fdf4;border:1.5px solid var(--green);border-radius:10px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px;}
+
+/* ── LOADING ── */
+.loading{display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:16px;}
+.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--mid);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── PRINT ── */
+@media print {
+  body{background:#fff !important;font-size:10pt;}
+  .sidebar,.topbar,.bbar,.btn-back,.overlay,.toast,button:not(.print-keep){display:none !important;}
+  .main{margin-left:0 !important;}
+  .page{display:block !important;padding:0 !important;}
+  #pageAdmin,#pageMyComp,#pageForm{display:none !important;}
+  #printArea{display:block !important;}
+  .print-header{margin-bottom:16pt;border-bottom:2pt solid #0f2744;padding-bottom:10pt;}
+  .print-header h1{font-size:16pt;font-weight:700;color:#0f2744;}
+  .print-header p{font-size:9pt;color:#555;margin-top:3pt;}
+  .print-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8pt;margin-bottom:14pt;}
+  .print-info-field{border-bottom:1pt solid #aaa;padding-bottom:4pt;}
+  .print-info-field .lbl{font-size:7.5pt;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#666;}
+  .print-info-field .val{font-size:10pt;color:#000;margin-top:2pt;}
+  .print-table{width:100%;border-collapse:collapse;margin-bottom:14pt;font-size:9pt;}
+  .print-table th{background:#0f2744 !important;color:#fff !important;padding:5pt 7pt;text-align:left;font-size:8pt;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .print-table th.center{text-align:center;}
+  .print-table td{padding:5pt 7pt;border:.5pt solid #ccc;vertical-align:middle;}
+  .print-table .sec-hdr td{background:#2563a8 !important;color:#fff !important;font-weight:700;font-size:8.5pt;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .print-table .sec-hdr td em{font-style:italic;opacity:.75;font-weight:400;font-size:8pt;margin-left:6pt;}
+  .print-table .row-alt td{background:#f0f6ff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .print-table .row-num{color:#888;font-size:8pt;margin-right:3pt;}
+  .print-sig-grid{display:grid;grid-template-columns:1fr 1fr;gap:12pt;margin-top:14pt;}
+  .print-sig-box{border:1pt solid #aaa;border-radius:4pt;padding:8pt 10pt;}
+  .print-sig-box .lbl{font-size:7.5pt;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#666;margin-bottom:4pt;}
+  .print-sig-box .val{font-size:11pt;font-weight:600;color:#065f46;}
+  .print-sig-box .date{font-size:8pt;color:#555;margin-top:2pt;}
+  .print-legend{font-size:7.5pt;color:#666;margin-top:8pt;border-top:.5pt solid #ddd;padding-top:6pt;}
+  tr{page-break-inside:avoid;}
+}
+
+@media(max-width:768px){
+  .auth-left{display:none;}
+  .auth-right{width:100%;padding:40px 24px;}
+  .sidebar{width:200px;}
+  .main{margin-left:200px;}
+  .bbar{left:200px;}
+  .stats-grid{grid-template-columns:repeat(2,1fr);}
+  .modal{width:95vw;padding:24px;}
+}
+</style>
+</head>
+<body>
+
+<!-- Loading screen -->
+<div class="loading" id="loadingScreen">
+  <div class="spinner"></div>
+  <p style="color:var(--muted);font-size:14px">Loading...</p>
+</div>
+
+<!-- Auth -->
+<div id="authScreen" style="display:none">
+  <div class="auth-wrap">
+    <div class="auth-left">
+      <div class="logo">Yellow Wood Recovery</div>
+      <h1>Staff Competency<br>Tracking System</h1>
+      <p>Track new hire orientation competencies, manage sign-offs, and ensure your team meets all clinical requirements.</p>
+    </div>
+    <div class="auth-right" id="loginPanel">
+      <h2>Welcome back</h2>
+      <p class="sub">Sign in to your account</p>
+      <div class="err" id="loginErr"></div>
+      <div class="fg"><label>Email</label><input type="text" id="loginEmail" placeholder="Enter your email"></div>
+      <div class="fg"><label>Password</label><input type="password" id="loginPw" placeholder="Enter your password"></div>
+      <button class="btn-primary" onclick="doLogin()">Sign In</button>
+      <div class="switch-link">No account? <a onclick="showReg()">Register here</a></div>
+    </div>
+    <div class="auth-right" id="regPanel" style="display:none">
+      <h2>Create account</h2>
+      <p class="sub">Join Yellow Wood Recovery</p>
+      <div class="err" id="regErr"></div>
+      <div class="fg"><label>Full Name</label><input type="text" id="regName" placeholder="Jane Smith"></div>
+      <div class="fg"><label>Email</label><input type="text" id="regEmail" placeholder="your email address"></div>
+      <div class="fg"><label>Password</label><input type="password" id="regPw" placeholder="Choose a password (min 6 chars)"></div>
+      <div class="fg"><label>Position</label>
+        <select id="regPos">
+          <option value="">Select position...</option>
+          <option value="nurse">Nurse (LVN/RN)</option>
+          <option value="counselor">Counselor</option>
+          <option value="therapist">Therapist</option>
+          <option value="doctor">Doctor / Physician</option>
+          <option value="case_manager">Case Manager</option>
+          <option value="tech">Tech / BHT</option>
+          <option value="administrative">Administrative</option>
+        </select>
+      </div>
+      <button class="btn-primary" onclick="doRegister()">Create Account</button>
+      <div class="switch-link">Have an account? <a onclick="showLogin()">Sign in</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="appScreen" style="display:none">
+  <!-- Setup banner shown when Supabase not configured -->
+  <div class="setup-banner" id="setupBanner" style="display:none">
+    ⚠️ <strong>Setup required:</strong> Add your Supabase URL and Anon Key at the top of this file to enable real-time data sync.
+  </div>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="brand"><span>Yellow Wood Recovery</span>Competency Tracker</div>
+      </div>
+      <nav id="sidebarNav" style="flex:1;padding:16px 0;"></nav>
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <div class="avatar" id="sbAvatar">?</div>
+          <div style="flex:1;min-width:0">
+            <div class="uname" id="sbName"></div>
+            <div class="urole" id="sbRole"></div>
+          </div>
+          <button class="logout-btn" onclick="doLogout()">&#x21A9;</button>
+        </div>
+      </div>
+    </aside>
+    <div class="main">
+      <div class="topbar"><h1 id="topTitle">Dashboard</h1></div>
+      <div id="pageAdmin" class="page"></div>
+      <div id="pageMyComp" class="page"></div>
+      <div id="pageForm" class="page"></div>
+    </div>
+  </div>
+  <div class="bbar" id="bbar">
+    <div class="prog-sum">
+      <div class="cnt" id="barCount">0 / 0</div>
+      <div class="lbl">criteria marked</div>
+      <div class="bigbar"><div class="bigfill" id="barFill" style="width:0%"></div></div>
+    </div>
+    <div class="btns">
+      <button class="btn-sec" onclick="saveDraft()">Save Draft</button>
+      <button class="btn-save" id="bbarSignBtn" onclick="openEmpModal()">&#x270D; Sign &amp; Submit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Employee Sign Modal -->
+<div class="overlay" id="empModal" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <h3>&#x270D;&#xFE0F; Employee Signature</h3>
+    <p>Sign below to confirm you have completed and reviewed all items in this competency evaluation.</p>
+    <div class="fg"><label>Your Full Name</label><input type="text" id="empSigName" placeholder="Enter your full name"></div>
+    <div class="fg">
+      <label>Draw Your Signature</label>
+      <div style="position:relative;border:1.5px solid var(--border);border-radius:8px;background:#fafafa;overflow:hidden;">
+        <canvas id="empCanvas" width="400" height="140" style="display:block;width:100%;height:140px;cursor:crosshair;touch-action:none;"></canvas>
+        <button onclick="clearCanvas('empCanvas')" style="position:absolute;top:6px;right:8px;background:rgba(255,255,255,0.9);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit;">Clear</button>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-top:4px;">Sign with your mouse or finger.</p>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="document.getElementById('empModal').style.display='none'">Cancel</button>
+      <button class="btn-primary" style="flex:1;margin-top:0" onclick="submitEmpSig()">Sign &amp; Submit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Validator Sign Modal -->
+<div class="overlay" id="valModal" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <h3>&#x2713; Validator Signature</h3>
+    <p>Review the completed competency form and sign below to certify accuracy. No account required.</p>
+    <div class="fg"><label>Your Full Name</label><input type="text" id="valSigName" placeholder="e.g. Dr. Sarah Johnson"></div>
+    <div class="fg">
+      <label>Draw Your Signature</label>
+      <div style="position:relative;border:1.5px solid var(--border);border-radius:8px;background:#fafafa;overflow:hidden;">
+        <canvas id="valCanvas" width="400" height="140" style="display:block;width:100%;height:140px;cursor:crosshair;touch-action:none;"></canvas>
+        <button onclick="clearCanvas('valCanvas')" style="position:absolute;top:6px;right:8px;background:rgba(255,255,255,0.9);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit;">Clear</button>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-top:4px;">Sign with your mouse or finger.</p>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="document.getElementById('valModal').style.display='none'">Cancel</button>
+      <button class="btn-primary" style="flex:1;margin-top:0" onclick="submitValSig()">Sign Off Competency</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="printArea" style="display:none;padding:24px;max-width:900px;margin:0 auto;font-family:'DM Sans',sans-serif;"></div>
+
+<script type="text/javascript">
+// ============================================================
+// ⚙️  CONFIGURATION — PASTE YOUR SUPABASE VALUES HERE
+// ============================================================
+var SUPABASE_URL  = 'https://hxddospucgacwcqoorel.supabase.co';
+var SUPABASE_ANON = 'sb_publishable_xRJHVHP53i6pPpvWdHNzLw_BytrBEmb';
+// ============================================================
+
+var supabase = null;
+var USE_SUPABASE = (SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON !== 'YOUR_SUPABASE_ANON_KEY');
+
+if (USE_SUPABASE) {
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+}
+
+// ── COMPETENCY DATA ──────────────────────────────────────────
+</script>
+<script type="text/javascript" id="compDataScript">
+
+const COMPETENCIES = {
+  nurse: {
+    label: "Nursing Staff Competencies",
+    sections: [
+      { title:"HAND HYGIENE", role:"Nursing Staff", criteria:[
+        "States dedication to patient safety and infection control.",
+        "Adheres to established infection control protocol on hand hygiene.",
+        "Performs hand hygiene with soap and water when hands are visibly soiled.",
+        "Performs hand hygiene before and after each patient contact.",
+        "Performs hand hygiene after contact with blood, bodily fluids, mucous membranes, secretions, or non-intact skin.",
+        "Performs hand hygiene after using the bathroom, eating, coughing, or sneezing.",
+        "Performs hand hygiene before wearing gloves and after their removal.",
+        "Performs hand hygiene after contact with a potentially contaminated inanimate object.",
+        "Demonstrates proper technique: wets hands, applies soap, scrubs vigorously for 20+ seconds, rinses, dries with paper towel.",
+        "Uses paper towel to turn off faucet."
+      ]},
+      { title:"OBSERVATION ROUNDS", role:"Nursing Staff", criteria:[
+        "States knowledge and understanding of relevant policies, including detoxification policy and observations policy.",
+        "Demonstrates knowledge of observation rounds documentation requirements.",
+        "States knowledge of emergency procedures and code responses.",
+        "Demonstrates correct frequency and timing of rounds per facility policy.",
+        "Correctly documents patient location, behavior, and status during each round.",
+        "Identifies and reports any patient safety concerns immediately.",
+        "Verifies patient is visible and accounted for during each round."
+      ]},
+      { title:"VITAL SIGNS", role:"Nursing Staff (LVN/RN)", criteria:[
+        "Demonstrates obtaining blood pressure. States knowledge of blood pressure, normal ranges, and abnormal findings.",
+        "Demonstrates obtaining pulse. States knowledge of pulse, normal ranges, and abnormal findings.",
+        "Demonstrates obtaining respirations. States knowledge of normal ranges and abnormal findings.",
+        "Demonstrates use and understanding of digital thermometer. States knowledge of normal ranges and abnormal findings.",
+        "Demonstrates use of pulse oximeter. States knowledge of normal oxygen saturation ranges and abnormal findings.",
+        "Accurately documents all vital signs.",
+        "Identifies and communicates critical values to appropriate personnel in a timely manner."
+      ]},
+      { title:"MEDICATION ADMINISTRATION", role:"Nursing Staff (LVN/RN)", criteria:[
+        "Washes hands prior to medication preparation.",
+        "Compares individual patient's labeled drugs with each drug listed on the MAR for administration at that time.",
+        "Compares stock medication label with medication listed on the MAR for administration at that time.",
+        "Prepares medication for patient self-administration.",
+        "If medication is a narcotic, signs out on the count sheet.",
+        "Verifies the six rights of medication administration: right patient, right drug, right dose, right route, right time, right documentation.",
+        "Identifies patient using two identifiers prior to medication administration.",
+        "Documents medication administration in the MAR immediately after administration.",
+        "Knows appropriate action for a missed or refused medication.",
+        "Recognizes and reports signs of adverse drug reactions or side effects."
+      ]},
+      { title:"PREGNANCY CASSETTE TEST", role:"Nursing Staff", criteria:[
+        "Identifies patient and explains the procedure.",
+        "Puts on gloves prior to handling specimen.",
+        "Collects urine sample in a sterile specimen cup.",
+        "Removes hCG test cassette from sealed pouch immediately before use.",
+        "Places cassette on a clean, flat, dry disposable surface.",
+        "Holds pipette vertically and transfers 3 full drops of urine to the specimen well (S), then starts timer.",
+        "Reads results at correct time per manufacturer instructions (not before 1 min, not after 10 min).",
+        "Correctly interprets positive, negative, and invalid results.",
+        "Documents results and reports positive results per facility protocol.",
+        "Disposes of specimen and materials as biohazardous waste."
+      ]},
+      { title:"INSTANT URINE DRUG SCREEN (UDS)", role:"Nursing Staff", criteria:[
+        "Identifies patient. Confirms consent for testing is signed upon admission. Explains procedure to patient.",
+        "Removes cup from sealed pouch and gives patient the sealed specimen cup to use immediately. Confirms specimen exceeds the minimum urine level line.",
+        "Puts on gloves to receive drug screen from patient.",
+        "Peels off label on cup body to view the test result window.",
+        "Reads test results at 5 minutes; does not read after 10 minutes.",
+        "Correctly interprets positive, negative, and invalid results.",
+        "Documents results and follows facility protocol for preliminary positive results.",
+        "Disposes of materials appropriately as biohazardous waste."
+      ]},
+      { title:"BREATHALYZER", role:"Nursing Staff", criteria:[
+        "Identifies patient. Confirms consent for testing is signed upon admission. Explains procedure to patient.",
+        "Ensures patient has not put anything in their mouth for 15 minutes prior to the test; completes 15-minute observation period if needed.",
+        "Puts on gloves.",
+        "Removes mouthpiece from wrapper without touching the patient end; attaches mouthpiece to port on left side of BACtrack unit.",
+        "Presses Power button — unit beeps and lights up.",
+        "Waits for countdown to reach 0, then instructs patient to blow firmly and steadily until the machine clicks; reads and documents results.",
+        "Recognizes that a Flo result indicates an error and restarts the process.",
+        "Removes mouthpiece from left side port; presses Power button to turn unit off.",
+        "Documents results and follows facility protocol for positive readings."
+      ]},
+      { title:"GLUCOMETER", role:"Nursing Staff (LVN/RN)", criteria:[
+        "Informs patient of the clinical indication for blood sugar testing and the purpose of the test.",
+        "Puts on gloves for the procedure.",
+        "Prepares the lancet device correctly.",
+        "Inserts the test strip correctly.",
+        "Cleans patient's selected finger with an alcohol pad.",
+        "Uses lancet to prick patient's finger and express a drop of blood.",
+        "Applies the drop of blood to the test strip while the flashing blood drop icon appears on the meter screen.",
+        "Expresses enough blood to completely fill the test strip window.",
+        "If window cannot be filled, restarts the process with a new test strip.",
+        "Correctly interprets whether blood sugar result is within normal range.",
+        "If results are not within normal range, knows appropriate actions to take and notifies appropriate personnel.",
+        "Places lancet in sharps container; disposes of test strip as biohazardous waste.",
+        "Performs a control solution test when indicated.",
+        "Documents results accurately in the patient record."
+      ]}
+    ]
+  }
+,
+  staff: {
+    label: "Staff Competencies",
+    sections: [
+      { title:"HAND HYGIENE", role:"All Staff", criteria:[
+        "States dedication to patient safety and infection control.",
+        "Adheres to established infection control protocol on hand hygiene.",
+        "Performs hand hygiene with soap and water when hands are visibly soiled.",
+        "Performs hand hygiene before and after each patient contact.",
+        "Performs hand hygiene after contact with blood, bodily fluids, mucous membranes, secretions, or non-intact skin.",
+        "Performs hand hygiene after using the bathroom, eating, coughing, or sneezing.",
+        "Performs hand hygiene before wearing gloves and after their removal.",
+        "Performs hand hygiene after contact with a potentially contaminated inanimate object.",
+        "Demonstrates proper technique: wets hands, applies soap, scrubs vigorously for 20+ seconds, rinses, dries with paper towel.",
+        "Uses paper towel to turn off faucet."
+      ]},
+      { title:"OBSERVATION ROUNDS", role:"All Staff", criteria:[
+        "States knowledge and understanding of relevant policies, including detoxification policy and observations policy.",
+        "Demonstrates knowledge of observation rounds documentation requirements.",
+        "States knowledge of emergency procedures and code responses.",
+        "Demonstrates correct frequency and timing of rounds per facility policy.",
+        "Correctly documents patient location, behavior, and status during each round.",
+        "Identifies and reports any patient safety concerns immediately.",
+        "Verifies patient is visible and accounted for during each round."
+      ]},
+      { title:"VITAL SIGNS", role:"All Staff", criteria:[
+        "Demonstrates obtaining blood pressure. States knowledge of blood pressure, normal ranges, and abnormal findings.",
+        "Demonstrates obtaining pulse. States knowledge of pulse, normal ranges, and abnormal findings.",
+        "Demonstrates obtaining respirations. States knowledge of normal ranges and abnormal findings.",
+        "Demonstrates use and understanding of digital thermometer. States knowledge of normal ranges and abnormal findings.",
+        "Demonstrates use of pulse oximeter. States knowledge of normal oxygen saturation ranges and abnormal findings.",
+        "Accurately documents all vital signs.",
+        "Identifies and communicates critical values to appropriate personnel in a timely manner."
+      ]},
+      { title:"MEDICATION ADMINISTRATION", role:"All Staff", criteria:[
+        "Washes hands prior to medication preparation.",
+        "Compares individual patient's labeled drugs with each drug listed on the MAR for administration at that time.",
+        "Compares stock medication label with medication listed on the MAR for administration at that time.",
+        "Prepares medication for patient self-administration.",
+        "If medication is a narcotic, signs out on the count sheet.",
+        "Verifies the six rights of medication administration: right patient, right drug, right dose, right route, right time, right documentation.",
+        "Identifies patient using two identifiers prior to medication administration.",
+        "Documents medication administration in the MAR immediately after administration.",
+        "Knows appropriate action for a missed or refused medication.",
+        "Recognizes and reports signs of adverse drug reactions or side effects."
+      ]},
+      { title:"PREGNANCY CASSETTE TEST", role:"All Staff", criteria:[
+        "Identifies patient and explains the procedure.",
+        "Puts on gloves prior to handling specimen.",
+        "Collects urine sample in a sterile specimen cup.",
+        "Removes hCG test cassette from sealed pouch immediately before use.",
+        "Places cassette on a clean, flat, dry disposable surface.",
+        "Holds pipette vertically and transfers 3 full drops of urine to the specimen well (S), then starts timer.",
+        "Reads results at correct time per manufacturer instructions (not before 1 min, not after 10 min).",
+        "Correctly interprets positive, negative, and invalid results.",
+        "Documents results and reports positive results per facility protocol.",
+        "Disposes of specimen and materials as biohazardous waste."
+      ]},
+      { title:"INSTANT URINE DRUG SCREEN (UDS)", role:"All Staff", criteria:[
+        "Identifies patient. Confirms consent for testing is signed upon admission. Explains procedure to patient.",
+        "Removes cup from sealed pouch and gives patient the sealed specimen cup to use immediately. Confirms specimen exceeds the minimum urine level line.",
+        "Puts on gloves to receive drug screen from patient.",
+        "Peels off label on cup body to view the test result window.",
+        "Reads test results at 5 minutes; does not read after 10 minutes.",
+        "Correctly interprets positive, negative, and invalid results.",
+        "Documents results and follows facility protocol for preliminary positive results.",
+        "Disposes of materials appropriately as biohazardous waste."
+      ]},
+      { title:"BREATHALYZER", role:"All Staff", criteria:[
+        "Identifies patient. Confirms consent for testing is signed upon admission. Explains procedure to patient.",
+        "Ensures patient has not put anything in their mouth for 15 minutes prior to the test; completes 15-minute observation period if needed.",
+        "Puts on gloves.",
+        "Removes mouthpiece from wrapper without touching the patient end; attaches mouthpiece to port on left side of BACtrack unit.",
+        "Presses Power button — unit beeps and lights up.",
+        "Waits for countdown to reach 0, then instructs patient to blow firmly and steadily until the machine clicks; reads and documents results.",
+        "Recognizes that a Flo result indicates an error and restarts the process.",
+        "Removes mouthpiece from left side port; presses Power button to turn unit off.",
+        "Documents results and follows facility protocol for positive readings."
+      ]}
+    ]
+  }
+};
+
+const POS_COMPS = {
+  nurse:          ["nurse"],
+  counselor:      ["staff"],
+  therapist:      ["staff"],
+  tech:           ["staff"],
+  doctor:         ["nurse"],
+  case_manager:   [],
+  administrative: []
+};
+
+const POS_LABELS = {
+  nurse:"Nurse (LVN/RN)", counselor:"Counselor", therapist:"Therapist",
+  doctor:"Doctor / Physician", case_manager:"Case Manager",
+  tech:"Tech / BHT", administrative:"Administrative"
+};
+
+
+// ── STATE ──────────────────────────────────────────────────
+var currentUser    = null;   // { id, email, name, role, position }
+var currentFormUser = null;
+var currentFormCompKey = null;
+var cbState = {};
+var _valModalFromAdmin = false;
+var _hasSigned = { emp: false, val: false };
+
+// In-memory fallback DB (used when Supabase not configured)
+var LOCAL_DB = { users: {}, progress: {} };
+
+// Always seed admin for local mode
+var ADMAIL = 'admin' + String.fromCharCode(64) + 'yellowwood.org';
+var ADPASS = 'admin123';
+LOCAL_DB.users[ADMAIL] = { id: 'admin', name: 'Super Admin', email: ADMAIL, password: ADPASS, role: 'admin', position: 'admin' };
+try {
+  var _s = localStorage.getItem('ywStaff');
+  if (_s) {
+    var _p = JSON.parse(_s);
+    Object.keys(_p.users||{}).forEach(function(k){ if(k!==ADMAIL) LOCAL_DB.users[k]=_p.users[k]; });
+    Object.assign(LOCAL_DB.progress, _p.progress||{});
+  }
+} catch(e){}
+
+function localPersist() {
+  try { localStorage.setItem('ywStaff', JSON.stringify({ users: LOCAL_DB.users, progress: LOCAL_DB.progress })); } catch(e){}
+}
+
+// ── INIT ──────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async function() {
+  document.getElementById('loadingScreen').style.display = 'flex';
+
+  if (USE_SUPABASE) {
+    // Check for existing Supabase session
+    var sessionRes = await supabase.auth.getSession();
+    if (sessionRes.data && sessionRes.data.session) {
+      var u = sessionRes.data.session.user;
+      // Load profile
+      var prof = await supabase.from('profiles').select('*').eq('id', u.id).single();
+      if (prof.data) {
+        currentUser = { id: u.id, email: u.email, name: prof.data.name, role: prof.data.role, position: prof.data.position };
+        document.getElementById('loadingScreen').style.display = 'none';
+        startApp();
+        return;
+      }
+    }
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('authScreen').style.display = 'block';
+  } else {
+    // Local mode
+    document.getElementById('setupBanner').style.display = 'flex';
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('authScreen').style.display = 'block';
+    // Show local mode hint
+    var hint = document.createElement('div');
+    hint.className = 'info-box';
+    hint.innerHTML = '<strong>Local mode:</strong> Data is stored on this device only.<br>Admin: admin [at] yellowwood.org / admin123';
+    document.getElementById('loginPanel').appendChild(hint);
+  }
+
+  // Enter key
+  document.getElementById('loginEmail').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
+  document.getElementById('loginPw').addEventListener('keydown',    function(e){ if(e.key==='Enter') doLogin(); });
+});
+
+// ── AUTH ──────────────────────────────────────────────────
+function showReg()   { document.getElementById('loginPanel').style.display='none'; document.getElementById('regPanel').style.display='flex'; document.getElementById('regPanel').style.flexDirection='column'; }
+function showLogin() { document.getElementById('regPanel').style.display='none';   document.getElementById('loginPanel').style.display='flex'; document.getElementById('loginPanel').style.flexDirection='column'; }
+
+async function doLogin() {
+  var email = (document.getElementById('loginEmail').value||'').trim().toLowerCase();
+  var pass  = (document.getElementById('loginPw').value||'').trim();
+  var err   = document.getElementById('loginErr');
+  err.style.display = 'none';
+  if (!email || !pass) { err.textContent='Please enter your email and password.'; err.style.display='block'; return; }
+
+  if (USE_SUPABASE) {
+    var res = await supabase.auth.signInWithPassword({ email: email, password: pass });
+    if (res.error) { err.textContent = res.error.message; err.style.display='block'; return; }
+    var u = res.data.user;
+    var prof = await supabase.from('profiles').select('*').eq('id', u.id).single();
+    if (!prof.data) { err.textContent='Profile not found. Contact admin.'; err.style.display='block'; return; }
+    currentUser = { id: u.id, email: u.email, name: prof.data.name, role: prof.data.role, position: prof.data.position };
+  } else {
+    // Local mode
+    if (email === ADMAIL && pass === ADPASS) {
+      currentUser = LOCAL_DB.users[ADMAIL];
+    } else {
+      var u = LOCAL_DB.users[email];
+      if (!u || u.password !== pass) { err.textContent='Email or password not recognized.'; err.style.display='block'; return; }
+      currentUser = u;
+    }
+  }
+  startApp();
+}
+
+async function doRegister() {
+  var name  = (document.getElementById('regName').value||'').trim();
+  var email = (document.getElementById('regEmail').value||'').trim().toLowerCase();
+  var pass  = (document.getElementById('regPw').value||'').trim();
+  var pos   = document.getElementById('regPos').value;
+  var err   = document.getElementById('regErr');
+  err.style.display = 'none';
+  if (!name||!email||!pass||!pos) { err.textContent='Please fill in all fields.'; err.style.display='block'; return; }
+
+  if (USE_SUPABASE) {
+    var res = await supabase.auth.signUp({ email: email, password: pass });
+    if (res.error) { err.textContent = res.error.message; err.style.display='block'; return; }
+    var uid = res.data.user.id;
+    await supabase.from('profiles').insert({ id: uid, name: name, email: email, role: 'staff', position: pos });
+    currentUser = { id: uid, email: email, name: name, role: 'staff', position: pos };
+  } else {
+    if (LOCAL_DB.users[email]) { err.textContent='An account with this email already exists.'; err.style.display='block'; return; }
+    var u = { id: email, name: name, email: email, password: pass, role: 'staff', position: pos };
+    LOCAL_DB.users[email] = u;
+    LOCAL_DB.progress[email] = {};
+    localPersist();
+    currentUser = u;
+  }
+  startApp();
+}
+
+async function doLogout() {
+  if (USE_SUPABASE) await supabase.auth.signOut();
+  currentUser = null;
+  document.getElementById('appScreen').style.display  = 'none';
+  document.getElementById('authScreen').style.display = 'block';
+  showLogin();
+}
+
+// ── APP SHELL ──────────────────────────────────────────────
+function startApp() {
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display  = 'block';
+  document.getElementById('sbAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
+  document.getElementById('sbName').textContent   = currentUser.name;
+  document.getElementById('sbRole').textContent   = currentUser.role === 'admin' ? 'Super Admin' : (POS_LABELS[currentUser.position]||currentUser.position);
+  var nav = document.getElementById('sidebarNav');
+  if (currentUser.role === 'admin') {
+    nav.innerHTML = '<div class="nav-item active" id="navAdmin" onclick="showPage(\'admin\')"><span>&#x1F4CA;</span> Dashboard</div>';
+  } else {
+    nav.innerHTML = '<div class="nav-item active" id="navMyComp" onclick="showPage(\'mycomp\')"><span>&#x2705;</span> My Competencies</div>';
+  }
+  if (currentUser.role === 'admin') showPage('admin');
+  else showPage('mycomp');
+}
+
+function showPage(p) {
+  ['pageAdmin','pageMyComp','pageForm'].forEach(function(id){ document.getElementById(id).classList.remove('active'); });
+  document.getElementById('bbar').style.display = 'none';
+  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+  if (p === 'admin') {
+    document.getElementById('topTitle').textContent = 'Admin Dashboard';
+    var n = document.getElementById('navAdmin'); if(n) n.classList.add('active');
+    document.getElementById('pageAdmin').classList.add('active');
+    renderAdmin();
+  } else if (p === 'mycomp') {
+    document.getElementById('topTitle').textContent = 'My Competencies';
+    var n = document.getElementById('navMyComp'); if(n) n.classList.add('active');
+    document.getElementById('pageMyComp').classList.add('active');
+    renderMyComps();
+  } else if (p === 'form') {
+    document.getElementById('topTitle').textContent = 'Competency Evaluation';
+    document.getElementById('pageForm').classList.add('active');
+    document.getElementById('bbar').style.display = 'flex';
+  }
+}
+
+// ── DATA HELPERS ──────────────────────────────────────────
+async function getAllStaff() {
+  if (USE_SUPABASE) {
+    var res = await supabase.from('profiles').select('*').eq('role','staff');
+    return res.data || [];
+  }
+  return Object.values(LOCAL_DB.users).filter(function(u){ return u.role==='staff'; });
+}
+
+async function getProgress(userId, compKey) {
+  if (USE_SUPABASE) {
+    var res = await supabase.from('progress').select('*').eq('user_id', userId).eq('comp_key', compKey).single();
+    return res.data || {};
+  }
+  var email = typeof userId === 'string' && userId.includes('@') ? userId : userId;
+  return ((LOCAL_DB.progress[email]||{})[compKey]||{});
+}
+
+async function saveProgress(userId, compKey, data) {
+  if (USE_SUPABASE) {
+    var existing = await supabase.from('progress').select('id').eq('user_id', userId).eq('comp_key', compKey).single();
+    if (existing.data) {
+      await supabase.from('progress').update(data).eq('user_id', userId).eq('comp_key', compKey);
+    } else {
+      await supabase.from('progress').insert(Object.assign({ user_id: userId, comp_key: compKey }, data));
+    }
+  } else {
+    var email = currentFormUser.email;
+    if (!LOCAL_DB.progress[email]) LOCAL_DB.progress[email] = {};
+    LOCAL_DB.progress[email][compKey] = Object.assign(LOCAL_DB.progress[email][compKey]||{}, data);
+    localPersist();
+  }
+}
+
+// ── ADMIN ──────────────────────────────────────────────────
+async function renderAdmin() {
+  document.getElementById('pageAdmin').innerHTML = '<div style="padding:40px;text-align:center"><div class="spinner"></div></div>';
+  var staff = await getAllStaff();
+
+  // Load all progress
+  var allProgress = {};
+  for (var i = 0; i < staff.length; i++) {
+    var u = staff[i];
+    var uid = USE_SUPABASE ? u.id : u.email;
+    allProgress[uid] = {};
+    var comps = POS_COMPS[u.position]||[];
+    for (var j = 0; j < comps.length; j++) {
+      allProgress[uid][comps[j]] = await getProgress(uid, comps[j]);
+    }
+  }
+
+  var total = staff.length, complete = 0, pending = 0;
+  staff.forEach(function(u){
+    var uid = USE_SUPABASE ? u.id : u.email;
+    var prog = calcProgress(u, allProgress[uid]);
+    if (prog.pct === 100 && prog.allDone) complete++;
+    if (prog.hasPending) pending++;
+  });
+
+  var html = '<div class="stats-grid">';
+  html += statCard(total,    'Total Staff',       'registered accounts',          '');
+  html += statCard(complete, 'Fully Complete',    'all competencies signed off',  'color:var(--green)');
+  html += statCard(total-complete, 'In Progress', 'not yet complete',             'color:var(--amber)');
+  html += statCard(pending,  'Pending Sign-Off',  'awaiting validator',           'color:var(--red)');
+  html += '</div>';
+
+  // Staff table
+  html += '<div class="card"><div class="card-hdr"><h2>All Staff Members</h2><input class="search" placeholder="Search..." oninput="filterStaff(this.value)"></div>';
+  html += '<table><thead><tr><th>Name</th><th>Position</th><th>Progress</th><th>Status</th><th></th></tr></thead>';
+  html += '<tbody id="staffTbody">' + staffRows(staff, allProgress) + '</tbody></table></div>';
+
+  // Pending sign-offs
+  var pendingItems = [];
+  staff.forEach(function(u){
+    var uid = USE_SUPABASE ? u.id : u.email;
+    (POS_COMPS[u.position]||[]).forEach(function(ck){
+      var pr = (allProgress[uid]||{})[ck]||{};
+      if (pr.emp_signed && !pr.val_signed) pendingItems.push({ u:u, ck:ck });
+    });
+  });
+
+  html += '<div class="card"><div class="card-hdr"><h2>&#x23F3; Pending Sign-Offs</h2></div>';
+  if (!pendingItems.length) {
+    html += '<p style="padding:20px;font-size:13px;color:var(--muted)">No competencies pending sign-off.</p>';
+  } else {
+    html += '<div class="pending-grid">';
+    pendingItems.forEach(function(item){
+      var uid = USE_SUPABASE ? item.u.id : item.u.email;
+      html += '<div class="pc"><div class="pc-name">'+esc(item.u.name)+'</div>';
+      html += '<div class="pc-sub">'+(COMPETENCIES[item.ck]?COMPETENCIES[item.ck].label:item.ck)+'</div>';
+      html += '<button class="pc-btn" onclick="adminSignOff(\''+uid+'\',\''+item.u.email+'\',\''+item.ck+'\')">&#x270D; Sign Off</button></div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // Completed / export
+  var completedItems = [];
+  staff.forEach(function(u){
+    var uid = USE_SUPABASE ? u.id : u.email;
+    (POS_COMPS[u.position]||[]).forEach(function(ck){
+      var pr = (allProgress[uid]||{})[ck]||{};
+      if (pr.val_signed) completedItems.push({ u:u, ck:ck, pr:pr, uid:uid });
+    });
+  });
+
+  html += '<div class="card"><div class="card-hdr"><h2>&#x2705; Completed &amp; Ready to Export</h2></div>';
+  if (!completedItems.length) {
+    html += '<p style="padding:20px;font-size:13px;color:var(--muted)">No fully signed competencies yet.</p>';
+  } else {
+    html += '<table><thead><tr><th>Employee</th><th>Competency</th><th>Employee Signed</th><th>Validator</th><th>Date Validated</th><th></th></tr></thead><tbody>';
+    completedItems.forEach(function(item){
+      html += '<tr>';
+      html += '<td><strong>'+esc(item.u.name)+'</strong><br><span style="font-size:11px;color:var(--muted)">'+(POS_LABELS[item.u.position]||item.u.position)+'</span></td>';
+      html += '<td style="font-size:12px">'+(COMPETENCIES[item.ck]?COMPETENCIES[item.ck].label:item.ck)+'</td>';
+      html += '<td style="font-size:12px">'+esc(item.pr.emp_sig_name||item.u.name)+'<br><span style="color:var(--muted)">'+(item.pr.emp_signed_at?new Date(item.pr.emp_signed_at).toLocaleDateString():'')+'</span></td>';
+      html += '<td style="font-size:12px">'+esc(item.pr.val_sig_name||'')+'</td>';
+      html += '<td style="font-size:12px">'+(item.pr.val_signed_at?new Date(item.pr.val_signed_at).toLocaleDateString():'')+'</td>';
+      html += '<td><button onclick="exportFromAdmin(\''+item.uid+'\',\''+item.u.email+'\',\''+item.ck+'\')" style="padding:7px 14px;background:var(--navy);color:#fff;border:none;border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">&#x2B07; Export PDF</button></td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+  }
+  html += '</div>';
+
+  document.getElementById('pageAdmin').innerHTML = html;
+}
+
+function calcProgress(u, progMap) {
+  var comps = POS_COMPS[u.position]||[];
+  var total=0, marked=0, allDone=true, hasPending=false;
+  comps.forEach(function(ck){
+    var comp = COMPETENCIES[ck]; if(!comp) return;
+    comp.sections.forEach(function(s){ total += s.criteria.length; });
+    var pr = (progMap||{})[ck]||{};
+    var checks = typeof pr.checks === 'string' ? JSON.parse(pr.checks||'{}') : (pr.checks||{});
+    Object.values(checks).forEach(function(v){ if(v.met||v.notMet) marked++; });
+    if (!pr.val_signed) allDone = false;
+    if (pr.emp_signed && !pr.val_signed) hasPending = true;
+  });
+  return { pct: total ? Math.round(marked/total*100) : 0, allDone: allDone && comps.length>0, hasPending: hasPending };
+}
+
+function staffRows(users, allProgress) {
+  if (!users.length) return '<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--muted)">No staff registered yet.</td></tr>';
+  return users.map(function(u){
+    var uid = USE_SUPABASE ? u.id : u.email;
+    var prog = calcProgress(u, allProgress[uid]);
+    var fc = prog.pct===100?'done':prog.pct<40?'low':'';
+    var badge = prog.allDone ? '<span class="badge b-green">Complete</span>' :
+                prog.hasPending ? '<span class="badge b-amber">Awaiting Sign-Off</span>' :
+                '<span class="badge b-gray">In Progress</span>';
+    return '<tr onclick="viewStaff(\''+uid+'\',\''+u.email+'\')">'
+      +'<td><strong>'+esc(u.name)+'</strong><br><span style="font-size:11px;color:var(--muted)">'+esc(u.email)+'</span></td>'
+      +'<td>'+(POS_LABELS[u.position]||u.position)+'</td>'
+      +'<td><div style="display:flex;align-items:center;gap:8px"><div class="pbar"><div class="pfill '+fc+'" style="width:'+prog.pct+'%"></div></div><span style="font-size:12px;color:var(--muted)">'+prog.pct+'%</span></div></td>'
+      +'<td>'+badge+'</td>'
+      +'<td style="color:var(--mid);font-weight:600;font-size:12px">View &rarr;</td>'
+      +'</tr>';
+  }).join('');
+}
+
+function filterStaff(q) {
+  // Re-render with filter - simplified for now
+  var rows = document.querySelectorAll('#staffTbody tr');
+  rows.forEach(function(r){
+    r.style.display = r.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none';
+  });
+}
+
+function statCard(val, label, sub, style) {
+  return '<div class="stat-card"><div class="stat-label">'+label+'</div><div class="stat-val" style="'+style+'">'+val+'</div><div class="stat-sub">'+sub+'</div></div>';
+}
+
+async function viewStaff(uid, email) {
+  var comps = POS_COMPS[USE_SUPABASE ? (await getPositionByUid(uid)) : LOCAL_DB.users[email].position] || [];
+  if (!comps.length) { toast('No competencies assigned yet.'); return; }
+  // Build a user-like object
+  var u = USE_SUPABASE ? (await supabase.from('profiles').select('*').eq('id',uid).single()).data : LOCAL_DB.users[email];
+  currentFormUser = Object.assign({}, u, { id: uid, email: email });
+  currentFormCompKey = comps[0];
+  var pr = await getProgress(uid, comps[0]);
+  cbState = typeof pr.checks === 'string' ? JSON.parse(pr.checks||'{}') : (pr.checks||{});
+  openForm();
+}
+
+async function getPositionByUid(uid) {
+  var res = await supabase.from('profiles').select('position').eq('id',uid).single();
+  return res.data ? res.data.position : 'nurse';
+}
+
+async function adminSignOff(uid, email, ck) {
+  var u = USE_SUPABASE ? (await supabase.from('profiles').select('*').eq('id',uid).single()).data : LOCAL_DB.users[email];
+  currentFormUser = Object.assign({}, u, { id: uid, email: email });
+  currentFormCompKey = ck;
+  var pr = await getProgress(uid, ck);
+  cbState = typeof pr.checks === 'string' ? JSON.parse(pr.checks||'{}') : (pr.checks||{});
+  _valModalFromAdmin = true;
+  openValModal();
+}
+
+// ── MY COMPETENCIES ───────────────────────────────────────
+async function renderMyComps() {
+  document.getElementById('pageMyComp').innerHTML = '<div style="padding:40px;text-align:center"><div class="spinner"></div></div>';
+  var u = currentUser;
+  var comps = POS_COMPS[u.position]||[];
+  var uid = u.id || u.email;
+
+  var html = '<h2 style="font-size:20px;font-weight:700;color:var(--navy);margin-bottom:4px">My Competencies</h2>';
+  html += '<p style="font-size:13px;color:var(--muted);margin-bottom:24px">Complete all required competencies for your role.</p>';
+
+  if (!comps.length) {
+    html += '<div style="text-align:center;padding:60px;color:var(--muted)"><div style="font-size:48px;margin-bottom:16px">&#x1F4CB;</div><p>No competencies assigned to your position yet.</p></div>';
+    document.getElementById('pageMyComp').innerHTML = html; return;
+  }
+
+  for (var i = 0; i < comps.length; i++) {
+    var ck = comps[i];
+    var comp = COMPETENCIES[ck]; if(!comp) continue;
+    var pr = await getProgress(uid, ck);
+    var checks = typeof pr.checks === 'string' ? JSON.parse(pr.checks||'{}') : (pr.checks||{});
+    var total=0, marked=0;
+    comp.sections.forEach(function(s){
+      total += s.criteria.length;
+      s.criteria.forEach(function(_,ci){
+        var c = checks[s.title+'_'+ci]; if(c&&(c.met||c.notMet)) marked++;
+      });
+    });
+    var pct = total ? Math.round(marked/total*100) : 0;
+    var fc = pct===100?'done':pct<40?'low':'';
+    var statusTxt = pr.val_signed ? '&#x2705; Signed Off' : pr.emp_signed ? '&#x23F3; Awaiting Validator' : pct===100 ? '&#x1F4CB; Ready to Submit' : '&#x270F;&#xFE0F; In Progress';
+    var statusCol = pr.val_signed ? 'var(--green)' : pr.emp_signed ? 'var(--amber)' : 'var(--muted)';
+
+    html += '<div class="comp-card">';
+    html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">';
+    html += '<h3>'+esc(comp.label)+'</h3><span style="font-size:13px;font-weight:600;color:'+statusCol+'">'+statusTxt+'</span></div>';
+    html += '<div class="meta">'+comp.sections.length+' sections &middot; '+total+' total criteria</div>';
+    html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px"><div class="pbar" style="flex:1;height:8px"><div class="pfill '+fc+'" style="width:'+pct+'%"></div></div><span style="font-size:13px;font-weight:600;color:var(--navy)">'+marked+' / '+total+'</span></div>';
+    if (!pr.val_signed) {
+      html += '<button onclick="openFormForComp(\''+ck+'\')" style="padding:9px 20px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">'+(pr.emp_signed?'View Form':'Continue &rarr;')+'</button>';
+    } else {
+      html += '<p style="font-size:13px;color:var(--green);font-weight:600">&#x2713; Signed off by: '+esc(pr.val_sig_name||'Validator')+'</p>';
+    }
+    html += '</div>';
+  }
+  document.getElementById('pageMyComp').innerHTML = html;
+}
+
+async function openFormForComp(ck) {
+  currentFormUser = currentUser;
+  currentFormCompKey = ck;
+  var uid = currentUser.id || currentUser.email;
+  var pr = await getProgress(uid, ck);
+  cbState = typeof pr.checks === 'string' ? JSON.parse(pr.checks||'{}') : (pr.checks||{});
+  openForm();
+}
+
+// ── FORM ──────────────────────────────────────────────────
+async function openForm() {
+  showPage('form');
+  await renderForm();
+}
+
+async function renderForm() {
+  var u = currentFormUser;
+  var ck = currentFormCompKey;
+  var comp = COMPETENCIES[ck];
+  var uid = u.id || u.email;
+  var pr = await getProgress(uid, ck);
+  var empSigned = !!pr.emp_signed;
+  var valSigned = !!pr.val_signed;
+  var cbLocked  = empSigned;
+  var checks = typeof pr.checks === 'string' ? JSON.parse(pr.checks||'{}') : (pr.checks||{});
+  cbState = checks;
+
+  var html = '<button class="btn-back" onclick="backFromForm()">&#8592; Back</button><div class="form-wrap">';
+
+  // Status banners
+  if (valSigned) {
+    html += '<div class="success-banner"><span style="font-size:24px">&#x2705;</span><div>';
+    html += '<div style="font-weight:700;color:#065f46">Fully Complete</div>';
+    html += '<div style="font-size:12px;color:#059669">Employee: '+esc(pr.emp_sig_name||u.name)+' &nbsp;|&nbsp; Validator: '+esc(pr.val_sig_name||'Validator')+' on '+(pr.val_signed_at?new Date(pr.val_signed_at).toLocaleDateString():'N/A')+'</div>';
+    html += '</div><button onclick="exportPDF()" style="margin-left:auto;padding:8px 16px;background:#065f46;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">&#x2B07; Export PDF</button></div>';
+  } else if (empSigned) {
+    html += '<div style="background:#fef3c7;border:1.5px solid var(--amber);border-radius:10px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px">';
+    html += '<span style="font-size:22px">&#x23F3;</span><div>';
+    html += '<div style="font-weight:700;color:#92400e">Awaiting Validator Sign-Off</div>';
+    html += '<div style="font-size:12px;color:#b45309">Employee signed on '+new Date(pr.emp_signed_at).toLocaleDateString()+'. A validator must now sign to complete.</div>';
+    html += '</div></div>';
+  }
+
+  // Info fields
+  html += '<div class="sec-card"><div class="sec-title">Employee Information</div><div class="grid2">';
+  html += '<div class="field"><label>Employee Name</label><input type="text" value="'+esc(u.name)+'" readonly></div>';
+  html += '<div class="field"><label>Date of Hire</label><input type="date" id="fi_doh" value="'+(pr.date_of_hire||'')+'" '+(cbLocked?'disabled':'oninput="saveInfoFields()"')+'></div>';
+  html += '<div class="field"><label>Position</label><input type="text" value="'+(POS_LABELS[u.position]||u.position)+'" readonly></div>';
+  html += '<div class="field"><label>Validator Name</label><input type="text" id="fi_val" value="'+(pr.validator_name||'')+'" '+(cbLocked?'disabled':'oninput="saveInfoFields()"')+'></div>';
+  html += '</div></div>';
+
+  // Criteria table
+  var allMetChecked = (function(){
+    var t=0, m=0;
+    comp.sections.forEach(function(sec){ sec.criteria.forEach(function(_,ci){ var k=sec.title+'_'+ci; var st=cbState[k]||{}; t++; if(st.met) m++; }); });
+    return t>0 && m===t;
+  })();
+
+  html += '<div class="card" style="overflow:visible"><table class="ctbl"><thead><tr>';
+  html += '<th style="width:66%">BEHAVIORAL CRITERIA</th><th style="width:13%;text-align:center">DIMENSIONS</th>';
+  if (!cbLocked) {
+    html += '<th style="width:10%;text-align:center">MET<br><input type="checkbox" class="ccb" id="selectAllMet" title="Check all Met" '+(allMetChecked?'checked':'')+' onchange="selectAllMet(this.checked)" style="margin-top:4px;cursor:pointer"></th>';
+  } else {
+    html += '<th style="width:10%;text-align:center">MET</th>';
+  }
+  html += '<th style="width:11%;text-align:center">NOT MET</th>';
+  html += '</tr></thead><tbody>';
+
+  var n = 1;
+  comp.sections.forEach(function(sec){
+    html += '<tr class="sec-row"><td colspan="4">'+esc(sec.title)+'<em>'+esc(sec.role)+'</em></td></tr>';
+    sec.criteria.forEach(function(crit, ci){
+      var key = sec.title+'_'+ci;
+      var st  = cbState[key]||{met:false,notMet:false};
+      var dis = cbLocked ? 'disabled' : '';
+      html += '<tr class="crit-row '+(ci%2===0?'even':'odd')+'" data-key="'+key+'">';
+      html += '<td><span class="rnum">'+n+'.</span>'+esc(crit)+'</td>';
+      html += '<td>C, I, T</td>';
+      html += '<td><input type="checkbox" class="ccb" '+(st.met?'checked':'')+' '+dis+' onchange="tick(\''+key+'\',\'met\',this.checked)"></td>';
+      html += '<td><input type="checkbox" class="ccb" '+(st.notMet?'checked':'')+' '+dis+' onchange="tick(\''+key+'\',\'notMet\',this.checked)"></td>';
+      html += '</tr>';
+      n++;
+    });
+  });
+  html += '</tbody></table>';
+  html += '<div class="legend"><b>Dimensions:</b> C = Critical Thinking &nbsp;|&nbsp; I = Interpersonal Skills &nbsp;|&nbsp; T = Technical Skills &nbsp;&nbsp; <b>Validation:</b> 1 = Direct Observation (Actual) &nbsp;|&nbsp; 2 = Direct Observation (Simulated) &nbsp;|&nbsp; 3 = Written/Oral Test</div>';
+  html += '</div>';
+
+  // Signature section
+  html += '<div class="val-section"><div class="val-hdr"><h3>Signatures</h3><p>Employee signs first to lock the form, then a validator signs to certify completion.</p></div><div class="grid2">';
+
+  if (empSigned) {
+    html += '<div class="field"><label>Employee Signature</label><div class="sig-box signed" style="height:80px;padding:4px;flex-direction:column;gap:4px;justify-content:center;">';
+    if (pr.emp_sig_img) html += '<img src="'+pr.emp_sig_img+'" style="max-height:56px;max-width:100%;object-fit:contain;border-radius:4px;" alt="Employee signature">';
+    html += '<span style="font-size:11px;color:#065f46;font-weight:600;">&#x2713; '+esc(pr.emp_sig_name||u.name)+'</span></div></div>';
+    html += '<div class="field"><label>Date Signed</label><input type="date" value="'+(pr.emp_signed_at?pr.emp_signed_at.split('T')[0]:'')+'" disabled></div>';
+  } else {
+    html += '<div class="field"><label>Employee Signature</label><div class="sig-box" onclick="openEmpModal()" style="cursor:pointer">Click here to sign</div></div>';
+    html += '<div class="field"><label>Date Signed</label><input type="date" disabled></div>';
+  }
+
+  if (valSigned) {
+    html += '<div class="field"><label>Validator Signature</label><div class="sig-box signed" style="height:80px;padding:4px;flex-direction:column;gap:4px;justify-content:center;">';
+    if (pr.val_sig_img) html += '<img src="'+pr.val_sig_img+'" style="max-height:56px;max-width:100%;object-fit:contain;border-radius:4px;" alt="Validator signature">';
+    html += '<span style="font-size:11px;color:#065f46;font-weight:600;">&#x2713; '+esc(pr.val_sig_name||'Validator')+'</span></div></div>';
+    html += '<div class="field"><label>Date Signed</label><input type="date" value="'+(pr.val_signed_at?pr.val_signed_at.split('T')[0]:'')+'" disabled></div>';
+  } else if (empSigned) {
+    html += '<div class="field"><label>Validator Signature</label><button onclick="openValModalFromForm()" style="width:100%;padding:10px;background:var(--mid);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">&#x2713; Sign Off as Validator</button></div>';
+    html += '<div class="field"><label>Date Signed</label><input type="date" disabled></div>';
+  } else {
+    html += '<div class="field"><label>Validator Signature</label><div class="sig-box" style="color:#cbd5e1;font-size:11px">Employee must sign first</div></div>';
+    html += '<div class="field"><label>Date Signed</label><input type="date" disabled></div>';
+  }
+
+  html += '</div></div></div>';
+  document.getElementById('pageForm').innerHTML = html;
+
+  // Update bottom bar button
+  var btn = document.getElementById('bbarSignBtn');
+  if (btn) {
+    if (valSigned)       { btn.textContent='Complete'; btn.disabled=true; btn.style.opacity='0.5'; }
+    else if (empSigned)  { btn.innerHTML='&#x2713; Validator Sign-Off'; btn.onclick=openValModalFromForm; }
+    else                 { btn.innerHTML='&#x270D; Sign & Submit'; btn.onclick=openEmpModal; }
+  }
+  updateBar(n-1);
+}
+
+// ── CHECKBOX ──────────────────────────────────────────────
+function tick(key, field, val) {
+  if (!cbState[key]) cbState[key]={met:false,notMet:false};
+  if (field==='met'   && val) cbState[key].notMet = false;
+  if (field==='notMet'&& val) cbState[key].met    = false;
+  cbState[key][field] = val;
+  var row = document.querySelector('tr[data-key="'+key+'"]');
+  if (row) {
+    var cbs = row.querySelectorAll('.ccb');
+    if (field==='met'    && val) cbs[1].checked = false;
+    if (field==='notMet' && val) cbs[0].checked = false;
+  }
+  var comp=COMPETENCIES[currentFormCompKey], total=0;
+  comp.sections.forEach(function(s){ total+=s.criteria.length; });
+  updateBar(total);
+  autoSave();
+}
+
+function selectAllMet(checked) {
+  var comp = COMPETENCIES[currentFormCompKey];
+  comp.sections.forEach(function(sec){
+    sec.criteria.forEach(function(_, ci){
+      var key = sec.title+'_'+ci;
+      if (!cbState[key]) cbState[key]={met:false,notMet:false};
+      cbState[key].met = checked;
+      if (checked) cbState[key].notMet = false;
+      var row = document.querySelector('tr[data-key="'+key+'"]');
+      if (row) {
+        var cbs = row.querySelectorAll('.ccb');
+        cbs[0].checked = checked;
+        if (checked) cbs[1].checked = false;
+      }
+    });
+  });
+  var total=0; comp.sections.forEach(function(s){ total+=s.criteria.length; });
+  updateBar(total);
+  autoSave();
+}
+
+function updateBar(total) {
+  var marked=0;
+  Object.values(cbState).forEach(function(v){ if(v.met||v.notMet) marked++; });
+  document.getElementById('barCount').textContent = marked+' / '+total;
+  document.getElementById('barFill').style.width  = (total?marked/total*100:0)+'%';
+}
+
+function saveInfoFields() {
+  var uid = currentFormUser.id || currentFormUser.email;
+  var doh = document.getElementById('fi_doh');
+  var fval= document.getElementById('fi_val');
+  var data = {};
+  if (doh  && doh.value)  data.date_of_hire    = doh.value;
+  if (fval && fval.value) data.validator_name  = fval.value;
+  if (Object.keys(data).length) saveProgress(uid, currentFormCompKey, data);
+}
+
+async function autoSave() {
+  var uid = currentFormUser.id || currentFormUser.email;
+  var checksStr = JSON.stringify(cbState);
+  saveInfoFields();
+  await saveProgress(uid, currentFormCompKey, { checks: checksStr });
+}
+
+async function saveDraft() {
+  await autoSave();
+  toast('Draft saved!', true);
+}
+
+// ── SIGNATURES ────────────────────────────────────────────
+var _drawing = false;
+
+function initCanvas(id) {
+  var canvas = document.getElementById(id);
+  if (!canvas) return;
+  var fresh = canvas.cloneNode(true);
+  canvas.parentNode.replaceChild(fresh, canvas);
+  canvas = fresh;
+  var ratio = window.devicePixelRatio||1;
+  var w = canvas.parentElement.clientWidth||380;
+  var h = 140;
+  canvas.width  = Math.floor(w*ratio);
+  canvas.height = Math.floor(h*ratio);
+  canvas.style.width  = w+'px';
+  canvas.style.height = h+'px';
+  var ctx = canvas.getContext('2d');
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.scale(ratio,ratio);
+  ctx.fillStyle='#fafafa'; ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle='#0f2744'; ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.lineJoin='round';
+  var drawing=false;
+  var sigKey = (id==='empCanvas')?'emp':'val';
+  function getXY(e) {
+    var r=canvas.getBoundingClientRect(), sx=w/r.width, sy=h/r.height;
+    if(e.touches&&e.touches.length>0) return {x:(e.touches[0].clientX-r.left)*sx, y:(e.touches[0].clientY-r.top)*sy};
+    return {x:(e.clientX-r.left)*sx, y:(e.clientY-r.top)*sy};
+  }
+  function onStart(e){ e.preventDefault(); drawing=true; _hasSigned[sigKey]=true; var p=getXY(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); }
+  function onMove(e) { e.preventDefault(); if(!drawing) return; var p=getXY(e); ctx.lineTo(p.x,p.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(p.x,p.y); }
+  function onStop()  { drawing=false; }
+  canvas.addEventListener('mousedown', onStart, false);
+  canvas.addEventListener('mousemove', onMove,  false);
+  canvas.addEventListener('mouseup',   onStop,  false);
+  canvas.addEventListener('mouseleave',onStop,  false);
+  canvas.addEventListener('touchstart',onStart, {passive:false});
+  canvas.addEventListener('touchmove', onMove,  {passive:false});
+  canvas.addEventListener('touchend',  onStop,  false);
+  canvas.id = id;
+}
+
+function clearCanvas(id) {
+  var canvas=document.getElementById(id); if(!canvas) return;
+  var ctx=canvas.getContext('2d'), ratio=window.devicePixelRatio||1;
+  ctx.fillStyle='#fafafa'; ctx.fillRect(0,0,canvas.width/ratio,canvas.height/ratio);
+  if(id==='empCanvas') _hasSigned.emp=false;
+  if(id==='valCanvas') _hasSigned.val=false;
+}
+
+function openEmpModal() {
+  _hasSigned.emp=false;
+  document.getElementById('empSigName').value = currentFormUser.name;
+  document.getElementById('empModal').style.display='flex';
+  setTimeout(function(){ initCanvas('empCanvas'); }, 150);
+}
+
+async function submitEmpSig() {
+  var name=(document.getElementById('empSigName').value||'').trim();
+  if (!name)            { toast('Please enter your full name.'); return; }
+  if (!_hasSigned.emp)  { toast('Please draw your signature.'); return; }
+  var canvas=document.getElementById('empCanvas');
+  var sigImg=canvas?canvas.toDataURL('image/png'):'';
+  var uid=currentFormUser.id||currentFormUser.email;
+  saveInfoFields();
+  await saveProgress(uid, currentFormCompKey, {
+    checks:       JSON.stringify(cbState),
+    emp_signed:   true,
+    emp_signed_at:new Date().toISOString(),
+    emp_sig_name: name,
+    emp_sig_img:  sigImg,
+    submitted:    true,
+    submitted_at: new Date().toISOString()
+  });
+  document.getElementById('empModal').style.display='none';
+  clearCanvas('empCanvas');
+  toast('Signed and submitted! Awaiting validator.', true);
+  setTimeout(function(){ renderForm(); }, 800);
+}
+
+function openValModal() {
+  _hasSigned.val=false;
+  document.getElementById('valSigName').value='';
+  document.getElementById('valModal').style.display='flex';
+  setTimeout(function(){ initCanvas('valCanvas'); }, 150);
+}
+
+function openValModalFromForm() { _valModalFromAdmin=false; openValModal(); }
+
+async function submitValSig() {
+  var name=(document.getElementById('valSigName').value||'').trim();
+  if (!name)           { toast('Please enter your full name.'); return; }
+  if (!_hasSigned.val) { toast('Please draw your signature.'); return; }
+  if (!currentFormUser||!currentFormCompKey) { toast('Error: no form context.'); return; }
+  var canvas=document.getElementById('valCanvas');
+  var sigImg=canvas?canvas.toDataURL('image/png'):'';
+  var uid=currentFormUser.id||currentFormUser.email;
+  await saveProgress(uid, currentFormCompKey, {
+    val_signed:   true,
+    val_signed_at:new Date().toISOString(),
+    val_sig_name: name,
+    val_sig_img:  sigImg
+  });
+  document.getElementById('valModal').style.display='none';
+  clearCanvas('valCanvas');
+  toast('Competency fully signed off!', true);
+  setTimeout(function(){
+    if (_valModalFromAdmin) { _valModalFromAdmin=false; showPage('admin'); }
+    else renderForm();
+  }, 800);
+}
+
+// ── BACK ──────────────────────────────────────────────────
+function backFromForm() {
+  document.getElementById('bbar').style.display='none';
+  if (currentUser.role==='admin') showPage('admin');
+  else showPage('mycomp');
+}
+
+// ── PDF EXPORT ───────────────────────────────────────────
+async function exportPDF() {
+  var u  = currentFormUser;
+  var ck = currentFormCompKey;
+  var comp = COMPETENCIES[ck];
+  var uid  = u.id||u.email;
+  var pr   = await getProgress(uid, ck);
+  var checks = typeof pr.checks==='string' ? JSON.parse(pr.checks||'{}') : (pr.checks||{});
+
+  var html='';
+  html += '<div class="print-header"><h1>Yellow Wood Recovery &mdash; Competency Evaluation</h1><p>'+esc(comp.label)+'</p></div>';
+  html += '<div class="print-info-grid">';
+  html += '<div class="print-info-field"><div class="lbl">Employee Name</div><div class="val">'+esc(u.name)+'</div></div>';
+  html += '<div class="print-info-field"><div class="lbl">Date of Hire</div><div class="val">'+(pr.date_of_hire||'&nbsp;')+'</div></div>';
+  html += '<div class="print-info-field"><div class="lbl">Position</div><div class="val">'+(POS_LABELS[u.position]||u.position)+'</div></div>';
+  html += '<div class="print-info-field"><div class="lbl">Validator</div><div class="val">'+esc(pr.val_sig_name||'&nbsp;')+'</div></div>';
+  html += '</div>';
+
+  html += '<table class="print-table"><thead><tr>';
+  html += '<th style="width:66%">BEHAVIORAL CRITERIA</th><th class="center" style="width:13%">DIMENSIONS</th>';
+  html += '<th class="center" style="width:10%">MET</th><th class="center" style="width:11%">NOT MET</th>';
+  html += '</tr></thead><tbody>';
+  var n=1;
+  comp.sections.forEach(function(sec){
+    html += '<tr class="sec-hdr"><td colspan="4">'+esc(sec.title)+'<em>'+esc(sec.role)+'</em></td></tr>';
+    sec.criteria.forEach(function(crit,ci){
+      var key=sec.title+'_'+ci, st=checks[key]||{};
+      html += '<tr class="'+(ci%2===1?'row-alt':'')+'">';
+      html += '<td><span class="row-num">'+n+'.</span>'+esc(crit)+'</td>';
+      html += '<td style="text-align:center;color:#666;font-size:8pt">C, I, T</td>';
+      html += '<td style="text-align:center"><div style="width:10pt;height:10pt;border:1pt solid #555;display:inline-flex;align-items:center;justify-content:center;font-size:9pt;background:'+(st.met?'#2563a8':'#fff')+';color:'+(st.met?'#fff':'transparent')+'">'+(st.met?'&#x2713;':'&nbsp;')+'</div></td>';
+      html += '<td style="text-align:center"><div style="width:10pt;height:10pt;border:1pt solid #555;display:inline-flex;align-items:center;justify-content:center;font-size:9pt;background:'+(st.notMet?'#2563a8':'#fff')+';color:'+(st.notMet?'#fff':'transparent')+'">'+(st.notMet?'&#x2713;':'&nbsp;')+'</div></td>';
+      html += '</tr>';
+      n++;
+    });
+  });
+  html += '</tbody></table>';
+  html += '<div class="print-legend"><strong>Dimensions:</strong> C = Critical Thinking &nbsp;|&nbsp; I = Interpersonal Skills &nbsp;|&nbsp; T = Technical Skills &nbsp;&nbsp; <strong>Validation:</strong> 1 = Direct Observation (Actual) &nbsp;|&nbsp; 2 = Simulated &nbsp;|&nbsp; 3 = Written/Oral Test</div>';
+
+  // Signatures
+  html += '<div class="print-sig-grid">';
+  html += '<div class="print-sig-box"><div class="lbl">Employee Signature</div>';
+  html += '<div style="border:1pt solid #ccc;border-radius:4pt;background:#fafafa;height:60pt;display:flex;align-items:center;justify-content:center;margin:4pt 0;overflow:hidden;">';
+  if (pr.emp_sig_img && pr.emp_sig_img.length>100) html += '<img src="'+pr.emp_sig_img+'" style="max-height:56pt;max-width:100%;object-fit:contain;" alt="Employee signature">';
+  else html += '<span style="color:#aaa;font-size:9pt;font-style:italic;">No signature captured</span>';
+  html += '</div><div style="font-size:9pt;color:#333;font-weight:600;">'+esc(pr.emp_sig_name||u.name)+'</div>';
+  html += '<div style="font-size:8pt;color:#666;">Signed: '+(pr.emp_signed_at?new Date(pr.emp_signed_at).toLocaleDateString():'N/A')+'</div></div>';
+
+  html += '<div class="print-sig-box"><div class="lbl">Validator Signature</div>';
+  html += '<div style="border:1pt solid #ccc;border-radius:4pt;background:#fafafa;height:60pt;display:flex;align-items:center;justify-content:center;margin:4pt 0;overflow:hidden;">';
+  if (pr.val_sig_img && pr.val_sig_img.length>100) html += '<img src="'+pr.val_sig_img+'" style="max-height:56pt;max-width:100%;object-fit:contain;" alt="Validator signature">';
+  else html += '<span style="color:#aaa;font-size:9pt;font-style:italic;">No signature captured</span>';
+  html += '</div><div style="font-size:9pt;color:#333;font-weight:600;">'+esc(pr.val_sig_name||'')+'</div>';
+  html += '<div style="font-size:8pt;color:#666;">Signed: '+(pr.val_signed_at?new Date(pr.val_signed_at).toLocaleDateString():'N/A')+'</div></div>';
+  html += '</div>';
+
+  var pa=document.getElementById('printArea');
+  pa.innerHTML=html; pa.style.display='block';
+  document.getElementById('appScreen').style.display='none';
+  window.print();
+  setTimeout(function(){ pa.style.display='none'; document.getElementById('appScreen').style.display='block'; }, 500);
+}
+
+async function exportFromAdmin(uid, email, ck) {
+  var u = USE_SUPABASE ? (await supabase.from('profiles').select('*').eq('id',uid).single()).data : LOCAL_DB.users[email];
+  currentFormUser    = Object.assign({}, u, { id: uid, email: email });
+  currentFormCompKey = ck;
+  exportPDF();
+}
+
+// ── UTILS ─────────────────────────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toast(msg, ok) {
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast'+(ok?' ok':'')+' show';
+  setTimeout(function(){ t.className='toast'; }, 3000);
+}
+</script>
+</body>
+</html>
