@@ -290,6 +290,8 @@ tbody td{padding:13px 16px;font-size:13px;vertical-align:middle;}
       <div id="pageAdmin" class="page"></div>
       <div id="pageMyComp" class="page"></div>
       <div id="pageForm" class="page"></div>
+      <div id="pageTests" class="page"></div>
+      <div id="pageTest" class="page" style="padding-bottom:90px"></div>
     </div>
   </div>
   <div class="bbar" id="bbar">
@@ -607,6 +609,205 @@ const POS_LABELS = {
 };
 
 
+// ── TESTS DATA ────────────────────────────────────────────
+const SIX_RIGHTS = ['patient','drug','dose','route','time','documentation'];
+
+const TESTS = {
+  medication: {
+    label: "Medication Administration Post-Test",
+    passingScore: 80,
+    questions: [
+      {
+        id: 1,
+        type: "text",
+        text: "List the six (6) rights of medication administration:",
+        points: 1,
+        // Graded by checking all 6 keywords present
+        keywords: ['patient','drug','dose','route','time','documentation']
+      },
+      {
+        id: 2,
+        type: "mc",
+        text: "Which action by the nurse is most likely to lead to a medication error?",
+        options: [
+          "a) Transcription of a drug order without including the medication route",
+          "b) Checking the patient's identity and picture prior to administration",
+          "c) Looking up an unfamiliar medication in the unit drug reference manual",
+          "d) Asking a colleague to verify a drug calculation"
+        ],
+        answer: "a"
+      },
+      {
+        id: 3,
+        type: "mc",
+        text: "Mike notices one of Mr. Smith's pills looks different than yesterday. Which action is most appropriate?",
+        options: [
+          "a) Call the doctor to verify the dosage",
+          "b) Look up the medication action in the reference manual",
+          "c) Call the pharmacy to verify if the manufacturer changed",
+          "d) Assume the pharmacy dispensed the correct medication"
+        ],
+        answer: "c"
+      },
+      {
+        id: 4,
+        type: "mc",
+        text: "A nurse administers an ordered IM anti-emetic rectally because the patient refused an injection. This is a medication error because the nurse did not:",
+        options: [
+          "a) Decrease the dose",
+          "b) Check allergies",
+          "c) Obtain an order for the rectal route",
+          "d) Administer before the evening meal"
+        ],
+        answer: "c"
+      },
+      {
+        id: 5,
+        type: "mc",
+        text: "During shift change, Sandra notes the Ativan count is incorrect and cannot be reconciled. Which action would be INCORRECT?",
+        options: [
+          "a) Notify DON and pharmacy",
+          "b) Complete an incident report",
+          "c) Refuse to accept keys until resolved",
+          "d) Change the count to match what is present"
+        ],
+        answer: "d"
+      },
+      {
+        id: 6,
+        type: "mc",
+        text: "What are common side effects the nurse should monitor for in patients receiving antipsychotic medications?",
+        options: [
+          "a) Extreme thirst, tingling, cold skin, headache",
+          "b) Bleeding tendencies, alopecia, mucosal ulcerations",
+          "c) Irritability, bronchial secretions, nausea, weight loss",
+          "d) Pseudo-parkinsonism, dry mouth, blurred vision, constipation, hypotension"
+        ],
+        answer: "d"
+      },
+      {
+        id: 7,
+        type: "mc",
+        text: "Three female patients have been taking Zyprexa for over a month. Which statement may indicate a medication side effect?",
+        options: [
+          "a) "I think I'm pregnant. I'm gaining weight."",
+          "b) "My joints ache more lately."",
+          "c) "My hair has become brittle and itchy."",
+          "d) "I feel much more energetic than normal.""
+        ],
+        answer: "a"
+      },
+      {
+        id: 8,
+        type: "mc",
+        text: "Which signs in a patient detoxing from alcohol may indicate impending delirium tremens?",
+        options: [
+          "a) Lethargy and lacrimation",
+          "b) Slurred speech and edema",
+          "c) Tremors and diaphoresis",
+          "d) Mild headache and increased appetite"
+        ],
+        answer: "c"
+      },
+      {
+        id: 9,
+        type: "mc",
+        text: "A client is prescribed Ativan for anxiety. Which teaching point is important?",
+        options: [
+          "a) Follow a tyramine-free diet",
+          "b) Restrict caffeine intake",
+          "c) Use special skin care products",
+          "d) Restrict tryptophan intake"
+        ],
+        answer: "b"
+      },
+      {
+        id: 10,
+        type: "mc",
+        text: "Before administering Suboxone (buprenorphine/naloxone), the nurse should:",
+        options: [
+          "a) Ensure the patient recently used opioids",
+          "b) Assess for opioid withdrawal using an approved scale such as COWS",
+          "c) Administer the medication with food only",
+          "d) Hold the medication if the patient reports cravings"
+        ],
+        answer: "b"
+      },
+      {
+        id: 11,
+        type: "mc",
+        text: "Which is a potential sign of opioid overdose requiring immediate intervention?",
+        options: [
+          "a) Dilated pupils and sweating",
+          "b) Increased appetite and anxiety",
+          "c) Respiratory depression and decreased level of consciousness",
+          "d) Elevated blood pressure and tremors"
+        ],
+        answer: "c"
+      },
+      {
+        id: 12,
+        type: "mc",
+        text: "A patient receiving methadone complains of excessive drowsiness. What is the nurse's priority action?",
+        options: [
+          "a) Encourage the patient to rest",
+          "b) Administer the next dose later in the day",
+          "c) Assess respiratory status and notify the provider",
+          "d) Offer caffeine to improve alertness"
+        ],
+        answer: "c"
+      },
+      {
+        id: 13,
+        type: "mc",
+        text: "Controlled substances must be:",
+        options: [
+          "a) Left accessible for rapid administration",
+          "b) Counted and documented according to facility policy",
+          "c) Stored separately only during night shift",
+          "d) Administered without witness verification"
+        ],
+        answer: "b"
+      },
+      {
+        id: 14,
+        type: "mc",
+        text: "Which statement about naloxone (Narcan) is correct?",
+        options: [
+          "a) It treats alcohol withdrawal symptoms",
+          "b) It reverses opioid overdose effects",
+          "c) It is only used in hospitals",
+          "d) It prevents opioid cravings for 24 hours"
+        ],
+        answer: "b"
+      },
+      {
+        id: 15,
+        type: "mc",
+        text: "When administering medications in a residential addiction treatment facility, documentation should include:",
+        options: [
+          "a) Only medications refused by the patient",
+          "b) Medication name and dosage only",
+          "c) Medication administration, patient response, and adverse effects",
+          "d) Documentation only for controlled substances"
+        ],
+        answer: "c"
+      }
+    ]
+  }
+};
+
+// Which tests each position must take
+const POS_TESTS = {
+  nurse:          ["medication"],
+  counselor:      ["medication"],
+  therapist:      ["medication"],
+  doctor:         ["medication"],
+  case_manager:   ["medication"],
+  tech:           ["medication"],
+  administrative: ["medication"]
+};
+
 // ── STATE ──────────────────────────────────────────────────
 var currentUser    = null;   // { id, email, name, role, position }
 var currentFormUser = null;
@@ -614,6 +815,8 @@ var currentFormCompKey = null;
 var cbState = {};
 var _valModalFromAdmin = false;
 var _hasSigned = { emp: false, val: false };
+var currentTestKey = null;
+var testAnswers = {};  // { qId: answer }
 
 // In-memory fallback DB (used when Supabase not configured)
 var LOCAL_DB = { users: {}, progress: {} };
@@ -761,14 +964,15 @@ function startApp() {
   if (currentUser.role === 'admin') {
     nav.innerHTML = '<div class="nav-item active" id="navAdmin" onclick="showPage(\'admin\')"><span>&#x1F4CA;</span> Dashboard</div>';
   } else {
-    nav.innerHTML = '<div class="nav-item active" id="navMyComp" onclick="showPage(\'mycomp\')"><span>&#x2705;</span> My Competencies</div>';
+    nav.innerHTML = '<div class="nav-item active" id="navMyComp" onclick="showPage(\'mycomp\')"><span>&#x2705;</span> My Competencies</div>'
+      + '<div class="nav-item" id="navTests" onclick="showPage(\'tests\')"><span>&#x1F4DD;</span> My Tests</div>';
   }
   if (currentUser.role === 'admin') showPage('admin');
   else showPage('mycomp');
 }
 
 function showPage(p) {
-  ['pageAdmin','pageMyComp','pageForm'].forEach(function(id){ document.getElementById(id).classList.remove('active'); });
+  ['pageAdmin','pageMyComp','pageForm','pageTests','pageTest'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.remove('active'); });
   document.getElementById('bbar').style.display = 'none';
   document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
   if (p === 'admin') {
@@ -781,6 +985,15 @@ function showPage(p) {
     var n = document.getElementById('navMyComp'); if(n) n.classList.add('active');
     document.getElementById('pageMyComp').classList.add('active');
     renderMyComps();
+  } else if (p === 'tests') {
+    document.getElementById('topTitle').textContent = 'My Tests';
+    var n = document.getElementById('navTests'); if(n) n.classList.add('active');
+    document.getElementById('pageTests').classList.add('active');
+    renderTests();
+  } else if (p === 'test') {
+    document.getElementById('topTitle').textContent = 'Knowledge Test';
+    document.getElementById('pageTest').classList.add('active');
+    document.getElementById('bbar').style.display = 'flex';
   } else if (p === 'form') {
     document.getElementById('topTitle').textContent = 'Competency Evaluation';
     document.getElementById('pageForm').classList.add('active');
@@ -1343,6 +1556,194 @@ function backFromForm() {
   document.getElementById('bbar').style.display='none';
   if (currentUser.role==='admin') showPage('admin');
   else showPage('mycomp');
+}
+
+// ── TESTS ────────────────────────────────────────────────
+async function getTestProgress(userId, testKey) {
+  if (USE_SUPABASE) {
+    var row = await sbGetOne('test_progress', 'user_id=eq.'+userId+'&test_key=eq.'+encodeURIComponent(testKey));
+    return row || {};
+  }
+  return ((LOCAL_DB.test_progress||{})[userId]||{})[testKey]||{};
+}
+
+async function saveTestProgress(userId, testKey, data) {
+  if (USE_SUPABASE) {
+    var payload = Object.assign({ user_id: userId, test_key: testKey }, data);
+    await sbUpsert('test_progress', payload, 'user_id,test_key');
+  } else {
+    if (!LOCAL_DB.test_progress) LOCAL_DB.test_progress = {};
+    if (!LOCAL_DB.test_progress[userId]) LOCAL_DB.test_progress[userId] = {};
+    LOCAL_DB.test_progress[userId][testKey] = Object.assign(LOCAL_DB.test_progress[userId][testKey]||{}, data);
+    localPersist();
+  }
+}
+
+async function renderTests() {
+  document.getElementById('pageTests').innerHTML = '<div style="padding:40px;text-align:center"><div class="spinner"></div></div>';
+  var u = currentUser;
+  var uid = u.id || u.email;
+  var testKeys = POS_TESTS[u.position] || [];
+
+  var html = '<h2 style="font-size:20px;font-weight:700;color:var(--navy);margin-bottom:4px">My Tests</h2>';
+  html += '<p style="font-size:13px;color:var(--muted);margin-bottom:24px">Complete all required knowledge tests. You must score 80% or higher to pass. You may retake as many times as needed.</p>';
+
+  if (!testKeys.length) {
+    html += '<div style="text-align:center;padding:60px;color:var(--muted)"><div style="font-size:48px;margin-bottom:16px">&#x1F4CB;</div><p>No tests assigned to your position yet.</p></div>';
+    document.getElementById('pageTests').innerHTML = html; return;
+  }
+
+  for (var i = 0; i < testKeys.length; i++) {
+    var tk = testKeys[i];
+    var test = TESTS[tk]; if (!test) continue;
+    var tp = await getTestProgress(uid, tk);
+    var passed = tp.passed;
+    var bestScore = tp.best_score || 0;
+    var attempts = tp.attempts || 0;
+    var statusTxt = passed ? '&#x2705; Passed' : attempts > 0 ? '&#x274C; Not Yet Passed' : '&#x1F4DD; Not Started';
+    var statusCol = passed ? 'var(--green)' : attempts > 0 ? 'var(--red)' : 'var(--muted)';
+
+    html += '<div class="comp-card">';
+    html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">';
+    html += '<h3>'+esc(test.label)+'</h3><span style="font-size:13px;font-weight:600;color:'+statusCol+'">'+statusTxt+'</span></div>';
+    html += '<div class="meta">'+test.questions.length+' questions &middot; Passing score: 80% &middot; Attempts: '+attempts+'</div>';
+    if (attempts > 0) {
+      html += '<div style="margin-bottom:12px;font-size:13px;color:var(--muted)">Best score: <strong style="color:var(--navy)">'+bestScore+'%</strong></div>';
+    }
+    html += '<button onclick="openTest(''+tk+'')" style="padding:9px 20px;background:'+(passed?'var(--green)':'var(--navy)')+';color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">'+(passed?'Review Test':'Take Test →')+'</button>';
+    html += '</div>';
+  }
+  document.getElementById('pageTests').innerHTML = html;
+}
+
+async function openTest(testKey) {
+  currentTestKey = testKey;
+  testAnswers = {};
+  showPage('test');
+  renderTestForm(false);
+  // Update bottom bar
+  var btn = document.getElementById('bbarSignBtn');
+  if (btn) { btn.innerHTML = '&#x1F4CA; Submit Test'; btn.onclick = submitTest; btn.disabled = false; btn.style.opacity = '1'; }
+  document.getElementById('barCount').textContent = '0 / '+(TESTS[testKey].questions.length);
+  document.getElementById('barFill').style.width = '0%';
+}
+
+function renderTestForm(showResults, resultData) {
+  var test = TESTS[currentTestKey];
+  var html = '<button class="btn-back" onclick="backFromTest()">&#8592; Back</button>';
+  html += '<div class="form-wrap">';
+
+  if (showResults && resultData) {
+    var scoreColor = resultData.passed ? 'var(--green)' : 'var(--red)';
+    var scoreBg = resultData.passed ? '#f0fdf4' : '#fef2f2';
+    var scoreBorder = resultData.passed ? 'var(--green)' : 'var(--red)';
+    html += '<div style="background:'+scoreBg+';border:1.5px solid '+scoreBorder+';border-radius:10px;padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;gap:16px">';
+    html += '<span style="font-size:36px">'+(resultData.passed?'&#x2705;':'&#x274C;')+'</span>';
+    html += '<div><div style="font-size:22px;font-weight:700;color:'+scoreColor+'">'+resultData.score+'% — '+(resultData.passed?'PASSED':'NOT PASSED')+'</div>';
+    html += '<div style="font-size:13px;color:var(--muted);margin-top:4px">'+(resultData.passed?'Congratulations! You passed the test.':'You need 80% or higher to pass. Review the questions below and try again.')+'</div></div></div>';
+  }
+
+  html += '<div class="sec-card"><div class="sec-title">'+esc(test.label)+'</div><div style="padding:20px 24px">';
+
+  test.questions.forEach(function(q, qi) {
+    var userAns = testAnswers[q.id];
+    var isCorrect = showResults ? gradeQuestion(q, userAns) : null;
+    var borderColor = showResults ? (isCorrect ? 'var(--green)' : 'var(--red)') : 'var(--border)';
+    var bgColor = showResults ? (isCorrect ? '#f0fdf4' : '#fef2f2') : 'white';
+
+    html += '<div style="margin-bottom:24px;padding:16px;border:1.5px solid '+borderColor+';border-radius:10px;background:'+bgColor+'">';
+    html += '<div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:12px"><span style="color:var(--muted);font-family:monospace;margin-right:6px">'+q.id+'.</span>'+esc(q.text)+'</div>';
+
+    if (q.type === 'text') {
+      html += '<textarea id="q_'+q.id+'" rows="4" placeholder="Type your answer here..." '+(showResults?'disabled':'')+' oninput="recordTextAnswer('+q.id+',this.value)" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;resize:vertical;">'+(userAns||'')+'</textarea>';
+      if (showResults) {
+        html += '<div style="margin-top:8px;font-size:12px;color:'+(isCorrect?'var(--green)':'var(--red)')+';">'+(isCorrect?'&#x2713; Correct — all 6 rights identified':'&#x2715; Missing one or more rights. Required: Right Patient, Right Drug, Right Dose, Right Route, Right Time, Right Documentation')+'</div>';
+      }
+    } else {
+      q.options.forEach(function(opt) {
+        var letter = opt.charAt(0);
+        var isSelected = userAns === letter;
+        var isAnswer = showResults && letter === q.answer;
+        var isWrong = showResults && isSelected && !isCorrect;
+        html += '<label style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:6px;cursor:'+(showResults?'default':'pointer')+';margin-bottom:6px;background:'+(isAnswer&&showResults?'#dcfce7':isWrong?'#fee2e2':'transparent')+';">';
+        html += '<input type="radio" name="q'+q.id+'" value="'+letter+'" '+(isSelected?'checked':'')+' '+(showResults?'disabled':'')+' onchange="recordAnswer('+q.id+',''+letter+'')" style="margin-top:2px;accent-color:var(--mid)">';
+        html += '<span style="font-size:13px">'+esc(opt)+'</span>';
+        if (isAnswer && showResults) html += '<span style="margin-left:auto;color:var(--green);font-weight:700;font-size:12px">&#x2713; Correct</span>';
+        html += '</label>';
+      });
+    }
+    html += '</div>';
+  });
+
+  html += '</div></div>';
+  if (showResults && resultData && !resultData.passed) {
+    html += '<button onclick="openTest(''+currentTestKey+'')" style="padding:12px 28px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:32px">&#x1F504; Retake Test</button>';
+  }
+  html += '</div>';
+  document.getElementById('pageTest').innerHTML = html;
+}
+
+function recordAnswer(qId, val) {
+  testAnswers[qId] = val;
+  updateTestBar();
+}
+
+function recordTextAnswer(qId, val) {
+  testAnswers[qId] = val;
+  updateTestBar();
+}
+
+function updateTestBar() {
+  var test = TESTS[currentTestKey];
+  var answered = Object.keys(testAnswers).filter(function(k){ return testAnswers[k] && testAnswers[k].trim(); }).length;
+  var total = test.questions.length;
+  document.getElementById('barCount').textContent = answered + ' / ' + total;
+  document.getElementById('barFill').style.width = (total ? answered/total*100 : 0) + '%';
+}
+
+function gradeQuestion(q, answer) {
+  if (!answer) return false;
+  if (q.type === 'text') {
+    var lower = (answer||'').toLowerCase();
+    return q.keywords.every(function(kw){ return lower.includes(kw); });
+  }
+  return (answer||'').toLowerCase() === (q.answer||'').toLowerCase();
+}
+
+async function submitTest() {
+  var test = TESTS[currentTestKey];
+  var unanswered = test.questions.filter(function(q){ return !testAnswers[q.id] || !String(testAnswers[q.id]).trim(); });
+  if (unanswered.length > 0) {
+    toast('Please answer all ' + unanswered.length + ' remaining question(s) before submitting.'); return;
+  }
+
+  var correct = 0;
+  test.questions.forEach(function(q){ if (gradeQuestion(q, testAnswers[q.id])) correct++; });
+  var score = Math.round(correct / test.questions.length * 100);
+  var passed = score >= 80;
+
+  var uid = currentUser.id || currentUser.email;
+  var existing = await getTestProgress(uid, currentTestKey);
+  var bestScore = Math.max(score, existing.best_score || 0);
+  var attempts = (existing.attempts || 0) + 1;
+
+  await saveTestProgress(uid, currentTestKey, {
+    passed: passed || existing.passed || false,
+    best_score: bestScore,
+    attempts: attempts,
+    last_score: score,
+    last_taken: new Date().toISOString(),
+    answers: JSON.stringify(testAnswers)
+  });
+
+  // Hide bottom bar, show results
+  document.getElementById('bbar').style.display = 'none';
+  renderTestForm(true, { score: score, passed: passed, correct: correct, total: test.questions.length });
+}
+
+function backFromTest() {
+  document.getElementById('bbar').style.display = 'none';
+  showPage('tests');
 }
 
 // ── PDF EXPORT ───────────────────────────────────────────
