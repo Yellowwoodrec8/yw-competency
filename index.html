@@ -399,24 +399,43 @@ async function sbUpsert(table, data, onConflict) {
 
 async function sbSignUp(email, password) {
   var res = await fetch(SUPABASE_URL + '/auth/v1/signup', {
-    method:'POST', headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON},
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'apikey': SUPABASE_ANON,
+      'Authorization': 'Bearer ' + SUPABASE_ANON
+    },
     body: JSON.stringify({email:email, password:password})
   });
-  return await res.json();
+  var json = await res.json();
+  console.log('SignUp raw response:', JSON.stringify(json));
+  return json;
 }
 
 async function sbSignIn(email, password) {
   var res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
-    method:'POST', headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON},
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'apikey': SUPABASE_ANON,
+      'Authorization': 'Bearer ' + SUPABASE_ANON
+    },
     body: JSON.stringify({email:email, password:password})
   });
-  return await res.json();
+  var json = await res.json();
+  console.log('SignIn raw response:', JSON.stringify(json));
+  return json;
 }
 
 async function sbSignOut() {
   if (!_authToken) return;
   await fetch(SUPABASE_URL + '/auth/v1/logout', {
-    method:'POST', headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON,'Authorization':'Bearer '+_authToken}
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'apikey': SUPABASE_ANON,
+      'Authorization': 'Bearer ' + _authToken
+    }
   });
   _authToken = null;
 }
@@ -740,7 +759,12 @@ async function doRegister() {
 
   if (USE_SUPABASE) {
     var res = await sbSignUp(email, pass);
-    if (res.error || !res.user) { err.textContent = res.error_description||res.error||'Registration failed.'; err.style.display='block'; return; }
+    console.log('Signup response:', JSON.stringify(res));
+    if (res.error || !res.user) { 
+      var msg = res.msg || res.error_description || res.error || res.message || JSON.stringify(res);
+      err.textContent = 'Error: ' + msg; 
+      err.style.display='block'; return; 
+    }
     var uid = res.user.id;
     _authToken = res.access_token;
     await sbInsert('profiles', { id: uid, name: name, email: email, role: 'staff', position: pos });
