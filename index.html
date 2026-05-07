@@ -809,18 +809,77 @@ const TESTS = {
         answer: "c"
       }
     ]
+  },
+  uds: {
+    label: "Instant Urine Drug Screen (UDS) Post-Test",
+    passingScore: 80,
+    questions: [
+      { id:1, type:"mc", text:"The appropriate abbreviation for the drug Cocaine is:",
+        options:["a) AMP","b) COC","c) OXY","d) MOP"], answer:"b" },
+      { id:2, type:"mc", text:"The appropriate abbreviation for the drug Marijuana is:",
+        options:["a) AMP","b) BZO","c) MOP","d) THC"], answer:"d" },
+      { id:3, type:"mc", text:"Devices can be stored in their sealed pouch at what temperature?",
+        options:["a) 90-100 degrees Celsius","b) 85-95 degrees Fahrenheit","c) 36-86 degrees Fahrenheit","d) 85-95 degrees Celsius"], answer:"c" },
+      { id:4, type:"mc", text:"Drug test results should be read at:",
+        options:["a) 1 minute","b) 3 minutes","c) 5 minutes","d) 10 minutes"], answer:"c" },
+      { id:5, type:"mc", text:"The presence of a line next to a T or number line indicates a _______ for that particular drug:",
+        options:["a) Preliminary positive","b) Negative","c) Invalid","d) None of these"], answer:"b" },
+      { id:6, type:"mc", text:"What should you do if you have an invalid result where no control line appears?",
+        options:["a) Prepare device for lab testing","b) Discard and retest using a new device","c) Consider all results negative","d) None of these"], answer:"b" },
+      { id:7, type:"mc", text:"What is the recommended method of confirmation for a preliminary positive urine drug screen result?",
+        options:["a) Use another urine screening device to be sure","b) Laboratory confirmation testing using GC-MS","c) Use an oral fluid screening device to confirm results","d) None of these"], answer:"b" },
+      { id:8, type:"mc", text:"The drug test results remain stable for up to:",
+        options:["a) 5 minutes","b) 10 minutes","c) 60 minutes","d) 24 hours"], answer:"c" },
+      { id:9, type:"mc", text:"The absence of a line next to a T or number line indicates a _______ for that particular drug:",
+        options:["a) Preliminary positive","b) Negative","c) Invalid","d) None of these"], answer:"a" },
+      { id:10, type:"mc", text:"What should you do before you start using the instant UDS drug screening device?",
+        options:["a) Read the package insert","b) Call your supervisor","c) Check the temperature on the temperature strip","d) None of these"], answer:"a" }
+    ]
+  },
+  glucometer: {
+    label: "Glucometer Post-Test",
+    passingScore: 80,
+    questions: [
+      { id:1, type:"mc", text:"Gloves must be worn when performing blood glucose or glucose control testing and when cleaning the glucometer.",
+        options:["a) True","b) False"], answer:"a" },
+      { id:2, type:"mc", text:"Once the test is completed, the used test strip can be disposed of in a regular (non-hazardous) trash receptacle.",
+        options:["a) True","b) False"], answer:"b" },
+      { id:3, type:"mc", text:"How are patients identified in the blood glucose monitoring system?",
+        options:["a) Ask the patient to state their name","b) Room number","c) Date of birth","d) Patient photo in chart","e) All of the above except b."], answer:"e" },
+      { id:4, type:"mc", text:"If the test strip does not fill completely:",
+        options:["a) Touch the test strip to the blood droplet a second time","b) Discard the test strip and repeat test with a new strip","c) Perform a control test","d) Return meter to docking station"], answer:"b" },
+      { id:5, type:"multi", text:"When should a quality control test be performed? Select ALL that apply.",
+        options:["a) If the meter has been dropped or damaged","b) At least once a week","c) Before every use","d) If the results are within normal range","e) If the results are in question","f) When using a new bottle of test strips"],
+        answers:["a","b","e","f"] }
+    ]
+  },
+  pregnancy: {
+    label: "Urine Pregnancy Test Post-Test",
+    passingScore: 80,
+    questions: [
+      { id:1, type:"mc", text:"Gloves must be worn when performing the dip stick pregnancy test.",
+        options:["a) True","b) False"], answer:"a" },
+      { id:2, type:"mc", text:"A patient can be given a non-sterile specimen cup that has a broken seal.",
+        options:["a) True","b) False"], answer:"b" },
+      { id:3, type:"mc", text:"How are patients identified when given a urine pregnancy test?",
+        options:["a) Ask the patient to state their name","b) Room number","c) Date of birth","d) Patient photo in chart","e) All of the above except b."], answer:"e" },
+      { id:4, type:"mc", text:"There is no such thing as an invalid pregnancy test.",
+        options:["a) True","b) False"], answer:"b" },
+      { id:5, type:"mc", text:"There is no time frame in which the pregnancy test needs to be read.",
+        options:["a) True","b) False"], answer:"b" }
+    ]
   }
 };
 
 // Which tests each position must take
 const POS_TESTS = {
-  nurse:          ["medication"],
-  counselor:      ["medication"],
-  therapist:      ["medication"],
-  doctor:         ["medication"],
-  case_manager:   ["medication"],
-  tech:           ["medication"],
-  administrative: ["medication"]
+  nurse:          ["medication","uds","glucometer","pregnancy"],
+  counselor:      ["medication","uds","pregnancy"],
+  therapist:      ["medication","uds","pregnancy"],
+  doctor:         ["medication","uds","glucometer","pregnancy"],
+  case_manager:   ["medication","uds","pregnancy"],
+  tech:           ["medication","uds","pregnancy"],
+  administrative: ["medication","uds","pregnancy"]
 };
 
 // -- STATE --------------------------------------------------
@@ -1682,6 +1741,24 @@ function renderTestForm(showResults, resultData) {
       if (showResults) {
         html += '<div style="margin-top:8px;font-size:12px;color:'+(isCorrect?'var(--green)':'var(--red)')+';">'+(isCorrect?'&#x2713; Correct - all 6 rights identified':'&#x2715; Missing one or more rights. Required: Right Patient, Right Drug, Right Dose, Right Route, Right Time, Right Documentation')+'</div>';
       }
+    } else if (q.type === 'multi') {
+      var selectedArr = Array.isArray(userAns) ? userAns : (userAns||'').split(',').filter(Boolean);
+      if (showResults) {
+        html += '<p style="font-size:11px;color:var(--muted);margin-bottom:8px">Correct: ' + esc((q.answers||[]).join(', ').toUpperCase()) + '</p>';
+      } else {
+        html += '<p style="font-size:11px;color:var(--muted);margin-bottom:8px">Select all that apply</p>';
+      }
+      q.options.forEach(function(opt) {
+        var letter = opt.charAt(0);
+        var isSel = selectedArr.indexOf(letter) !== -1;
+        var isCorr = (q.answers||[]).indexOf(letter) !== -1;
+        var bg = showResults ? (isCorr ? '#dcfce7' : (isSel && !isCorr ? '#fee2e2' : 'transparent')) : 'transparent';
+        html += '<label style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:6px;cursor:'+(showResults?'default':'pointer')+';margin-bottom:6px;background:'+bg+'">';
+        html += '<input type="checkbox" name="q'+q.id+'" value="'+letter+'" '+(isSel?'checked':'')+' '+(showResults?'disabled':'')+' onchange="recordMultiAnswer('+q.id+',&quot;'+letter+'&quot;,this.checked)" style="margin-top:2px;accent-color:var(--mid)">';
+        html += '<span style="font-size:13px">'+esc(opt)+'</span>';
+        if (showResults && isCorr) html += '<span style="margin-left:auto;color:var(--green);font-weight:700;font-size:12px">&#x2713;</span>';
+        html += '</label>';
+      });
     } else {
       q.options.forEach(function(opt) {
         var letter = opt.charAt(0);
@@ -1711,6 +1788,17 @@ function recordAnswer(qId, val) {
   updateTestBar();
 }
 
+function recordMultiAnswer(qId, letter, checked) {
+  var current = Array.isArray(testAnswers[qId]) ? testAnswers[qId] : (testAnswers[qId]||'').split(',').filter(Boolean);
+  if (checked) {
+    if (current.indexOf(letter) === -1) current.push(letter);
+  } else {
+    current = current.filter(function(l){ return l !== letter; });
+  }
+  testAnswers[qId] = current;
+  updateTestBar();
+}
+
 function recordTextAnswer(qId, val) {
   testAnswers[qId] = val;
   updateTestBar();
@@ -1729,6 +1817,14 @@ function gradeQuestion(q, answer) {
   if (q.type === 'text') {
     var lower = (answer||'').toLowerCase();
     return q.keywords.every(function(kw){ return lower.includes(kw); });
+  }
+  if (q.type === 'multi') {
+    // answer is an array or comma-separated string
+    var selected = Array.isArray(answer) ? answer : (answer||'').split(',').filter(Boolean);
+    var correct = q.answers || [];
+    return selected.length === correct.length &&
+      correct.every(function(a){ return selected.indexOf(a) !== -1; }) &&
+      selected.every(function(a){ return correct.indexOf(a) !== -1; });
   }
   return (answer||'').toLowerCase() === (q.answer||'').toLowerCase();
 }
