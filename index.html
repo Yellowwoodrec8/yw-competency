@@ -376,10 +376,29 @@ function sbHeaders(extra) {
   return Object.assign(h, extra||{});
 }
 
+async function sbFetchWithTimeout(url, options, ms) {
+  ms = ms || 8000;
+  var controller = new AbortController();
+  var timer = setTimeout(function(){ controller.abort(); }, ms);
+  try {
+    var res = await fetch(url, Object.assign({}, options, { signal: controller.signal }));
+    clearTimeout(timer);
+    return res;
+  } catch(e) {
+    clearTimeout(timer);
+    throw e;
+  }
+}
+
 async function sbGet(table, query) {
   var url = SUPABASE_URL + '/rest/v1/' + table + '?' + (query||'');
-  var res = await fetch(url, { headers: sbHeaders({'Prefer':'return=representation'}) });
-  return res.ok ? await res.json() : [];
+  try {
+    var res = await sbFetchWithTimeout(url, { headers: sbHeaders({'Prefer':'return=representation'}) });
+    return res.ok ? await res.json() : [];
+  } catch(e) {
+    console.error('sbGet failed:', e);
+    return [];
+  }
 }
 
 async function sbGetOne(table, query) {
@@ -844,24 +863,26 @@ window.addEventListener('DOMContentLoaded', async function() {
 
   if (USE_SUPABASE) {
     // Check for saved session in localStorage
+    var sessionRestored = false;
     try {
       var saved = localStorage.getItem('yw_session');
       if (saved) {
         var sess = JSON.parse(saved);
-        // Verify session still valid by fetching profile
         var prof = await sbGetOne('profiles', 'id=eq.' + sess.userId + '&password_hash=eq.' + sess.passHash);
         if (prof) {
           currentUser = { id: sess.userId, email: sess.email, name: prof.name, role: prof.role, position: prof.position };
-          document.getElementById('setupBanner').style.display = 'none';
-          document.getElementById('loadingScreen').style.display = 'none';
-          startApp();
-          return;
+          sessionRestored = true;
+        } else {
+          localStorage.removeItem('yw_session');
         }
-        localStorage.removeItem('yw_session');
       }
-    } catch(e) { localStorage.removeItem('yw_session'); }
+    } catch(e) { 
+      console.log('Session restore error:', e);
+      try { localStorage.removeItem('yw_session'); } catch(e2){}
+    }
     document.getElementById('setupBanner').style.display = 'none';
     document.getElementById('loadingScreen').style.display = 'none';
+    if (sessionRestored) { startApp(); return; }
     document.getElementById('authScreen').style.display = 'block';
   } else {
     // Local mode
