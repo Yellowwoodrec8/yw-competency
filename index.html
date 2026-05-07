@@ -6,7 +6,7 @@
 <meta http-equiv="X-Frame-Options" content="ALLOWALL">
 <title>Yellow Wood Recovery — Competency Tracker</title>
 <!-- Supabase SDK -->
-<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 :root {
@@ -358,24 +358,70 @@ var SUPABASE_URL  = 'https://hxddospucgacwcqoorel.supabase.co';
 var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4ZGRvc3B1Y2dhY3djcW9vcmVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMDExNDYsImV4cCI6MjA5MzU3NzE0Nn0.aSRB3AwK9cTykcCJzWCZ82sjq0JH5o1N0Hlc0X-1IQg';
 // ============================================================
 
-var supabase = null;
+// ── SUPABASE REST API (no SDK needed) ────────────────────
 var USE_SUPABASE = (SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON !== 'YOUR_SUPABASE_ANON_KEY');
+var _authToken = null; // set after login
 
-if (USE_SUPABASE) {
-  try {
-    var _sb = window.supabase || window.Supabase;
-    if (_sb && _sb.createClient) {
-      supabase = _sb.createClient(SUPABASE_URL, SUPABASE_ANON);
-      console.log('Supabase connected OK');
-    } else {
-      console.error('Supabase SDK not found on window object');
-      USE_SUPABASE = false;
-    }
-  } catch(e) {
-    console.error('Supabase init error:', e);
-    USE_SUPABASE = false;
-  }
+function sbHeaders(extra) {
+  var h = { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + ((_authToken)||SUPABASE_ANON) };
+  return Object.assign(h, extra||{});
 }
+
+async function sbGet(table, query) {
+  var url = SUPABASE_URL + '/rest/v1/' + table + '?' + (query||'');
+  var res = await fetch(url, { headers: sbHeaders({'Prefer':'return=representation'}) });
+  return res.ok ? await res.json() : [];
+}
+
+async function sbGetOne(table, query) {
+  var rows = await sbGet(table, query);
+  return Array.isArray(rows) ? (rows[0]||null) : null;
+}
+
+async function sbInsert(table, data) {
+  var url = SUPABASE_URL + '/rest/v1/' + table;
+  var res = await fetch(url, { method:'POST', headers: sbHeaders({'Prefer':'return=representation'}), body: JSON.stringify(data) });
+  var json = await res.json();
+  return Array.isArray(json) ? json[0] : json;
+}
+
+async function sbUpdate(table, query, data) {
+  var url = SUPABASE_URL + '/rest/v1/' + table + '?' + query;
+  var res = await fetch(url, { method:'PATCH', headers: sbHeaders({'Prefer':'return=representation'}), body: JSON.stringify(data) });
+  return res.ok;
+}
+
+async function sbUpsert(table, data, onConflict) {
+  var url = SUPABASE_URL + '/rest/v1/' + table + '?on_conflict=' + (onConflict||'');
+  var res = await fetch(url, { method:'POST', headers: sbHeaders({'Prefer':'resolution=merge-duplicates,return=representation'}), body: JSON.stringify(data) });
+  return res.ok;
+}
+
+async function sbSignUp(email, password) {
+  var res = await fetch(SUPABASE_URL + '/auth/v1/signup', {
+    method:'POST', headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON},
+    body: JSON.stringify({email:email, password:password})
+  });
+  return await res.json();
+}
+
+async function sbSignIn(email, password) {
+  var res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+    method:'POST', headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON},
+    body: JSON.stringify({email:email, password:password})
+  });
+  return await res.json();
+}
+
+async function sbSignOut() {
+  if (!_authToken) return;
+  await fetch(SUPABASE_URL + '/auth/v1/logout', {
+    method:'POST', headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON,'Authorization':'Bearer '+_authToken}
+  });
+  _authToken = null;
+}
+
+if (USE_SUPABASE) console.log('Supabase REST API ready:', SUPABASE_URL);
 
 // ── COMPETENCY DATA ──────────────────────────────────────────
 </script>
@@ -610,32 +656,26 @@ function localPersist() {
 window.addEventListener('DOMContentLoaded', async function() {
   document.getElementById('loadingScreen').style.display = 'flex';
 
-  // Re-attempt Supabase init here in case SDK loaded after script block
-  if (SUPABASE_URL !== 'YOUR_SUPABASE_URL' && !supabase) {
-    try {
-      var _sb = window.supabase || window.Supabase;
-      if (_sb && _sb.createClient) {
-        supabase = _sb.createClient(SUPABASE_URL, SUPABASE_ANON);
-        USE_SUPABASE = true;
-        console.log('Supabase connected on DOMContentLoaded');
-      }
-    } catch(e) { console.error('Supabase retry failed:', e); }
-  }
-
   if (USE_SUPABASE) {
-    // Check for existing Supabase session
-    var sessionRes = await supabase.auth.getSession();
-    if (sessionRes.data && sessionRes.data.session) {
-      var u = sessionRes.data.session.user;
-      // Load profile
-      var prof = await supabase.from('profiles').select('*').eq('id', u.id).single();
-      if (prof.data) {
-        currentUser = { id: u.id, email: u.email, name: prof.data.name, role: prof.data.role, position: prof.data.position };
-        document.getElementById('loadingScreen').style.display = 'none';
-        startApp();
-        return;
+    // Check for saved session in localStorage
+    try {
+      var saved = localStorage.getItem('yw_session');
+      if (saved) {
+        var sess = JSON.parse(saved);
+        _authToken = sess.token;
+        // Verify token still valid by fetching profile
+        var prof = await sbGetOne('profiles', 'id=eq.' + sess.userId);
+        if (prof) {
+          currentUser = { id: sess.userId, email: sess.email, name: prof.name, role: prof.role, position: prof.position };
+          document.getElementById('setupBanner').style.display = 'none';
+          document.getElementById('loadingScreen').style.display = 'none';
+          startApp();
+          return;
+        }
+        localStorage.removeItem('yw_session');
       }
-    }
+    } catch(e) { localStorage.removeItem('yw_session'); }
+    document.getElementById('setupBanner').style.display = 'none';
     document.getElementById('loadingScreen').style.display = 'none';
     document.getElementById('authScreen').style.display = 'block';
   } else {
@@ -667,12 +707,15 @@ async function doLogin() {
   if (!email || !pass) { err.textContent='Please enter your email and password.'; err.style.display='block'; return; }
 
   if (USE_SUPABASE) {
-    var res = await supabase.auth.signInWithPassword({ email: email, password: pass });
-    if (res.error) { err.textContent = res.error.message; err.style.display='block'; return; }
-    var u = res.data.user;
-    var prof = await supabase.from('profiles').select('*').eq('id', u.id).single();
-    if (!prof.data) { err.textContent='Profile not found. Contact admin.'; err.style.display='block'; return; }
-    currentUser = { id: u.id, email: u.email, name: prof.data.name, role: prof.data.role, position: prof.data.position };
+    var res = await sbSignIn(email, pass);
+    if (res.error || !res.access_token) { err.textContent = res.error_description||res.error||'Login failed.'; err.style.display='block'; return; }
+    _authToken = res.access_token;
+    var uid = res.user.id;
+    var prof = await sbGetOne('profiles', 'id=eq.' + uid);
+    if (!prof) { err.textContent='Profile not found. Contact admin.'; err.style.display='block'; return; }
+    currentUser = { id: uid, email: email, name: prof.name, role: prof.role, position: prof.position };
+    // Save session
+    try { localStorage.setItem('yw_session', JSON.stringify({token:_authToken, userId:uid, email:email})); } catch(e){}
   } else {
     // Local mode
     if (email === ADMAIL && pass === ADPASS) {
@@ -696,11 +739,13 @@ async function doRegister() {
   if (!name||!email||!pass||!pos) { err.textContent='Please fill in all fields.'; err.style.display='block'; return; }
 
   if (USE_SUPABASE) {
-    var res = await supabase.auth.signUp({ email: email, password: pass });
-    if (res.error) { err.textContent = res.error.message; err.style.display='block'; return; }
-    var uid = res.data.user.id;
-    await supabase.from('profiles').insert({ id: uid, name: name, email: email, role: 'staff', position: pos });
+    var res = await sbSignUp(email, pass);
+    if (res.error || !res.user) { err.textContent = res.error_description||res.error||'Registration failed.'; err.style.display='block'; return; }
+    var uid = res.user.id;
+    _authToken = res.access_token;
+    await sbInsert('profiles', { id: uid, name: name, email: email, role: 'staff', position: pos });
     currentUser = { id: uid, email: email, name: name, role: 'staff', position: pos };
+    try { localStorage.setItem('yw_session', JSON.stringify({token:_authToken, userId:uid, email:email})); } catch(e){}
   } else {
     if (LOCAL_DB.users[email]) { err.textContent='An account with this email already exists.'; err.style.display='block'; return; }
     var u = { id: email, name: name, email: email, password: pass, role: 'staff', position: pos };
@@ -713,7 +758,7 @@ async function doRegister() {
 }
 
 async function doLogout() {
-  if (USE_SUPABASE) await supabase.auth.signOut();
+  if (USE_SUPABASE) { await sbSignOut(); try { localStorage.removeItem('yw_session'); } catch(e){} }
   currentUser = null;
   document.getElementById('appScreen').style.display  = 'none';
   document.getElementById('authScreen').style.display = 'block';
@@ -761,31 +806,26 @@ function showPage(p) {
 // ── DATA HELPERS ──────────────────────────────────────────
 async function getAllStaff() {
   if (USE_SUPABASE) {
-    var res = await supabase.from('profiles').select('*').eq('role','staff');
-    return res.data || [];
+    var rows = await sbGet('profiles', 'role=eq.staff');
+    return rows || [];
   }
   return Object.values(LOCAL_DB.users).filter(function(u){ return u.role==='staff'; });
 }
 
 async function getProgress(userId, compKey) {
   if (USE_SUPABASE) {
-    var res = await supabase.from('progress').select('*').eq('user_id', userId).eq('comp_key', compKey).single();
-    return res.data || {};
+    var row = await sbGetOne('progress', 'user_id=eq.'+userId+'&comp_key=eq.'+encodeURIComponent(compKey));
+    return row || {};
   }
-  var email = typeof userId === 'string' && userId.includes('@') ? userId : userId;
-  return ((LOCAL_DB.progress[email]||{})[compKey]||{});
+  return ((LOCAL_DB.progress[userId]||{})[compKey]||{});
 }
 
 async function saveProgress(userId, compKey, data) {
   if (USE_SUPABASE) {
-    var existing = await supabase.from('progress').select('id').eq('user_id', userId).eq('comp_key', compKey).single();
-    if (existing.data) {
-      await supabase.from('progress').update(data).eq('user_id', userId).eq('comp_key', compKey);
-    } else {
-      await supabase.from('progress').insert(Object.assign({ user_id: userId, comp_key: compKey }, data));
-    }
+    var payload = Object.assign({ user_id: userId, comp_key: compKey }, data);
+    await sbUpsert('progress', payload, 'user_id,comp_key');
   } else {
-    var email = currentFormUser.email;
+    var email = currentFormUser ? currentFormUser.email : userId;
     if (!LOCAL_DB.progress[email]) LOCAL_DB.progress[email] = {};
     LOCAL_DB.progress[email][compKey] = Object.assign(LOCAL_DB.progress[email][compKey]||{}, data);
     localPersist();
@@ -933,10 +973,11 @@ function statCard(val, label, sub, style) {
 }
 
 async function viewStaff(uid, email) {
-  var comps = POS_COMPS[USE_SUPABASE ? (await getPositionByUid(uid)) : LOCAL_DB.users[email].position] || [];
+  var _udata = USE_SUPABASE ? (await sbGetOne('profiles','id=eq.'+uid)) : LOCAL_DB.users[email];
+  var comps = POS_COMPS[_udata ? _udata.position : 'nurse'] || [];
   if (!comps.length) { toast('No competencies assigned yet.'); return; }
   // Build a user-like object
-  var u = USE_SUPABASE ? (await supabase.from('profiles').select('*').eq('id',uid).single()).data : LOCAL_DB.users[email];
+  var u = USE_SUPABASE ? (await sbGetOne('profiles', 'id=eq.'+uid)) : LOCAL_DB.users[email];
   currentFormUser = Object.assign({}, u, { id: uid, email: email });
   currentFormCompKey = comps[0];
   var pr = await getProgress(uid, comps[0]);
@@ -945,12 +986,12 @@ async function viewStaff(uid, email) {
 }
 
 async function getPositionByUid(uid) {
-  var res = await supabase.from('profiles').select('position').eq('id',uid).single();
-  return res.data ? res.data.position : 'nurse';
+  var row = await sbGetOne('profiles', 'id=eq.'+uid+'&select=position');
+  return row ? row.position : 'nurse';
 }
 
 async function adminSignOff(uid, email, ck) {
-  var u = USE_SUPABASE ? (await supabase.from('profiles').select('*').eq('id',uid).single()).data : LOCAL_DB.users[email];
+  var u = USE_SUPABASE ? (await sbGetOne('profiles', 'id=eq.'+uid)) : LOCAL_DB.users[email];
   currentFormUser = Object.assign({}, u, { id: uid, email: email });
   currentFormCompKey = ck;
   var pr = await getProgress(uid, ck);
@@ -1383,7 +1424,7 @@ async function exportPDF() {
 }
 
 async function exportFromAdmin(uid, email, ck) {
-  var u = USE_SUPABASE ? (await supabase.from('profiles').select('*').eq('id',uid).single()).data : LOCAL_DB.users[email];
+  var u = USE_SUPABASE ? (await sbGetOne('profiles', 'id=eq.'+uid)) : LOCAL_DB.users[email];
   currentFormUser    = Object.assign({}, u, { id: uid, email: email });
   currentFormCompKey = ck;
   exportPDF();
