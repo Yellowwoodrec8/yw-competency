@@ -858,44 +858,13 @@ function localPersist() {
 }
 
 // ── INIT ──────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', async function() {
-  document.getElementById('loadingScreen').style.display = 'flex';
-
-  if (USE_SUPABASE) {
-    // Check for saved session in localStorage
-    var sessionRestored = false;
-    try {
-      var saved = localStorage.getItem('yw_session');
-      if (saved) {
-        var sess = JSON.parse(saved);
-        var prof = await sbGetOne('profiles', 'id=eq.' + sess.userId + '&password_hash=eq.' + sess.passHash);
-        if (prof) {
-          currentUser = { id: sess.userId, email: sess.email, name: prof.name, role: prof.role, position: prof.position };
-          sessionRestored = true;
-        } else {
-          localStorage.removeItem('yw_session');
-        }
-      }
-    } catch(e) { 
-      console.log('Session restore error:', e);
-      try { localStorage.removeItem('yw_session'); } catch(e2){}
-    }
-    document.getElementById('setupBanner').style.display = 'none';
-    document.getElementById('loadingScreen').style.display = 'none';
-    if (sessionRestored) { startApp(); return; }
-    document.getElementById('authScreen').style.display = 'block';
-  } else {
-    // Local mode
+window.addEventListener('DOMContentLoaded', function() {
+  // Always go straight to login - no async session check
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('authScreen').style.display = 'block';
+  if (!USE_SUPABASE) {
     document.getElementById('setupBanner').style.display = 'flex';
-    document.getElementById('loadingScreen').style.display = 'none';
-    document.getElementById('authScreen').style.display = 'block';
-    // Show local mode hint
-    var hint = document.createElement('div');
-    hint.className = 'info-box';
-    hint.innerHTML = '<strong>Local mode:</strong> Data is stored on this device only.<br>Admin: admin [at] yellowwood.org / admin123';
-    document.getElementById('loginPanel').appendChild(hint);
   }
-
   // Enter key
   document.getElementById('loginEmail').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
   document.getElementById('loginPw').addEventListener('keydown',    function(e){ if(e.key==='Enter') doLogin(); });
