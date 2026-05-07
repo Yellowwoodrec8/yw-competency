@@ -1107,6 +1107,43 @@ async function renderAdmin() {
   }
   html += '</div>';
 
+  // Test Scores section
+  var testScores = [];
+  for (var si = 0; si < staff.length; si++) {
+    var su = staff[si];
+    var suid = USE_SUPABASE ? su.id : su.email;
+    var stests = POS_TESTS[su.position]||[];
+    for (var ti = 0; ti < stests.length; ti++) {
+      var tk = stests[ti];
+      var tp = await getTestProgress(suid, tk);
+      if (tp && (tp.attempts||0) > 0) {
+        testScores.push({ u: su, uid: suid, tk: tk, tp: tp });
+      }
+    }
+  }
+
+  html += '<div class="card"><div class="card-hdr"><h2>&#x1F4DD; Test Scores</h2></div>';
+  if (!testScores.length) {
+    html += '<p style="padding:20px;font-size:13px;color:var(--muted)">No test attempts yet.</p>';
+  } else {
+    html += '<table><thead><tr><th>Employee</th><th>Test</th><th>Status</th><th>Best Score</th><th>Attempts</th><th>Last Taken</th><th></th></tr></thead><tbody>';
+    testScores.forEach(function(item) {
+      var passed = item.tp.passed;
+      var badge = passed ? '<span class="badge b-green">Passed</span>' : '<span class="badge b-amber">Not Passed</span>';
+      html += '<tr>';
+      html += '<td><strong>'+esc(item.u.name)+'</strong><br><span style="font-size:11px;color:var(--muted)">'+(POS_LABELS[item.u.position]||item.u.position)+'</span></td>';
+      html += '<td style="font-size:12px">'+(TESTS[item.tk]?TESTS[item.tk].label:item.tk)+'</td>';
+      html += '<td>'+badge+'</td>';
+      html += '<td style="font-size:13px;font-weight:700;color:'+(passed?'var(--green)':'var(--red)')+'">'+( item.tp.best_score||0)+'%</td>';
+      html += '<td style="font-size:12px;color:var(--muted)">'+( item.tp.attempts||0)+'</td>';
+      html += '<td style="font-size:12px;color:var(--muted)">'+(item.tp.last_taken?new Date(item.tp.last_taken).toLocaleDateString():'')+'</td>';
+      html += '<td><button onclick="exportTestPDF(&quot;'+item.uid+'&quot;,&quot;'+item.u.email+'&quot;,&quot;'+item.tk+'&quot;)" style="padding:7px 14px;background:var(--navy);color:#fff;border:none;border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">&#x2B07; Export PDF</button></td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+  }
+  html += '</div>';
+
   document.getElementById('pageAdmin').innerHTML = html;
 }
 
@@ -1730,6 +1767,63 @@ async function submitTest() {
 function backFromTest() {
   document.getElementById('bbar').style.display = 'none';
   showPage('tests');
+}
+
+// -- TEST PDF EXPORT -----------------------------------------
+async function exportTestPDF(uid, email, tk) {
+  var u = USE_SUPABASE ? (await sbGetOne('profiles', 'id=eq.'+uid)) : LOCAL_DB.users[email];
+  if (!u) return;
+  var test = TESTS[tk]; if (!test) return;
+  var tp = await getTestProgress(uid, tk);
+  var answers = tp.answers ? JSON.parse(tp.answers) : {};
+
+  var html = '';
+  html += '<div class="print-header"><h1>Yellow Wood Recovery -- Knowledge Test Results</h1><p>'+esc(test.label)+'</p></div>';
+  html += '<div class="print-info-grid">';
+  html += '<div class="print-info-field"><div class="lbl">Employee Name</div><div class="val">'+esc(u.name)+'</div></div>';
+  html += '<div class="print-info-field"><div class="lbl">Position</div><div class="val">'+(POS_LABELS[u.position]||u.position)+'</div></div>';
+  html += '<div class="print-info-field"><div class="lbl">Best Score</div><div class="val">'+( tp.best_score||0)+'%</div></div>';
+  html += '<div class="print-info-field"><div class="lbl">Status</div><div class="val">'+(tp.passed?'PASSED':'NOT PASSED')+'</div></div>';
+  html += '<div class="print-info-field"><div class="lbl">Total Attempts</div><div class="val">'+(tp.attempts||0)+'</div></div>';
+  html += '<div class="print-info-field"><div class="lbl">Date Printed</div><div class="val">'+new Date().toLocaleDateString()+'</div></div>';
+  html += '</div>';
+
+  html += '<table class="print-table"><thead><tr>';
+  html += '<th style="width:5%">#</th><th style="width:50%">Question</th>';
+  html += '<th style="width:30%">Answer Given</th><th style="width:15%;text-align:center">Result</th>';
+  html += '</tr></thead><tbody>';
+
+  test.questions.forEach(function(q) {
+    var userAns = answers[q.id] || '';
+    var correct = gradeQuestion(q, userAns);
+    var bg = correct ? '#f0fdf4' : '#fef2f2';
+    var col = correct ? '#065f46' : '#dc2626';
+    html += '<tr style="background:'+bg+';">';
+    html += '<td style="text-align:center;font-weight:700;color:#888">'+q.id+'</td>';
+    html += '<td>'+esc(q.text);
+    if (q.type==='mc') {
+      var correctOpt = q.options.find(function(o){ return o.charAt(0)===q.answer; })||'';
+      html += '<br><span style="font-size:7.5pt;color:#555">Correct: '+esc(correctOpt)+'</span>';
+    } else {
+      html += '<br><span style="font-size:7.5pt;color:#555">Required: Right Patient, Right Drug, Right Dose, Right Route, Right Time, Right Documentation</span>';
+    }
+    html += '</td>';
+    if (q.type==='mc') {
+      var givenOpt = userAns ? q.options.find(function(o){ return o.charAt(0)===userAns; })||userAns : 'No answer';
+      html += '<td style="font-size:10pt">'+esc(givenOpt)+'</td>';
+    } else {
+      html += '<td style="font-size:10pt">'+esc(userAns||'No answer')+'</td>';
+    }
+    html += '<td style="text-align:center;font-weight:700;color:'+col+'">'+(correct?'CORRECT':'INCORRECT')+'</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+
+  var pa = document.getElementById('printArea');
+  pa.innerHTML = html; pa.style.display = 'block';
+  document.getElementById('appScreen').style.display = 'none';
+  window.print();
+  setTimeout(function(){ pa.style.display='none'; document.getElementById('appScreen').style.display='block'; }, 500);
 }
 
 // -- PDF EXPORT -------------------------------------------
