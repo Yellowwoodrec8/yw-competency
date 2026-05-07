@@ -353,14 +353,15 @@ tbody td{padding:13px 16px;font-size:13px;vertical-align:middle;}
 <div id="printArea" style="display:none;padding:24px;max-width:900px;margin:0 auto;font-family:'DM Sans',sans-serif;"></div>
 
 <script type="text/javascript">
+
 // ============================================================
-// ⚙️  CONFIGURATION — PASTE YOUR SUPABASE VALUES HERE
+//   CONFIGURATION - PASTE YOUR SUPABASE VALUES HERE
 // ============================================================
 var SUPABASE_URL  = 'https://hxddospucgacwcqoorel.supabase.co';
 var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4ZGRvc3B1Y2dhY3djcW9vcmVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMDExNDYsImV4cCI6MjA5MzU3NzE0Nn0.aSRB3AwK9cTykcCJzWCZ82sjq0JH5o1N0Hlc0X-1IQg';
 // ============================================================
 
-// ── SUPABASE REST API (no auth SDK needed) ───────────────
+// -- SUPABASE REST API (no auth SDK needed) ---------------
 var USE_SUPABASE = (SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON !== 'YOUR_SUPABASE_ANON_KEY');
 
 // Simple hash function for passwords (not cryptographic but sufficient for internal tool)
@@ -426,10 +427,6 @@ async function sbUpsert(table, data, onConflict) {
 }
 
 if (USE_SUPABASE) console.log('Supabase REST API ready:', SUPABASE_URL);
-
-// ── COMPETENCY DATA ──────────────────────────────────────────
-</script>
-<script type="text/javascript" id="compDataScript">
 
 const COMPETENCIES = {
   nurse: {
@@ -504,7 +501,7 @@ const COMPETENCIES = {
         "Ensures patient has not put anything in their mouth for 15 minutes prior to the test; completes 15-minute observation period if needed.",
         "Puts on gloves.",
         "Removes mouthpiece from wrapper without touching the patient end; attaches mouthpiece to port on left side of BACtrack unit.",
-        "Presses Power button — unit beeps and lights up.",
+        "Presses Power button - unit beeps and lights up.",
         "Waits for countdown to reach 0, then instructs patient to blow firmly and steadily until the machine clicks; reads and documents results.",
         "Recognizes that a Flo result indicates an error and restarts the process.",
         "Removes mouthpiece from left side port; presses Power button to turn unit off.",
@@ -601,7 +598,7 @@ const COMPETENCIES = {
         "Ensures patient has not put anything in their mouth for 15 minutes prior to the test; completes 15-minute observation period if needed.",
         "Puts on gloves.",
         "Removes mouthpiece from wrapper without touching the patient end; attaches mouthpiece to port on left side of BACtrack unit.",
-        "Presses Power button — unit beeps and lights up.",
+        "Presses Power button - unit beeps and lights up.",
         "Waits for countdown to reach 0, then instructs patient to blow firmly and steadily until the machine clicks; reads and documents results.",
         "Recognizes that a Flo result indicates an error and restarts the process.",
         "Removes mouthpiece from left side port; presses Power button to turn unit off.",
@@ -628,7 +625,7 @@ const POS_LABELS = {
 };
 
 
-// ── TESTS DATA ────────────────────────────────────────────
+// -- TESTS DATA --------------------------------------------
 const SIX_RIGHTS = ['patient','drug','dose','route','time','documentation'];
 
 const TESTS = {
@@ -709,11 +706,10 @@ const TESTS = {
         type: "mc",
         text: "Three female patients have been taking Zyprexa for over a month. Which statement may indicate a medication side effect?",
         options: [
-          "a) "I think I'm pregnant. I'm gaining weight."",
-          "b) "My joints ache more lately."",
-          "c) "My hair has become brittle and itchy."",
-          "d) "I feel much more energetic than normal.""
-        ],
+                    "a) Patient says: I think I'm pregnant. I'm gaining weight.",
+          "b) Patient says: My joints ache more lately.",
+          "c) Patient says: My hair has become brittle and itchy.",
+          "d) Patient says: I feel much more energetic than normal."],
         answer: "a"
       },
       {
@@ -827,7 +823,7 @@ const POS_TESTS = {
   administrative: ["medication"]
 };
 
-// ── STATE ──────────────────────────────────────────────────
+// -- STATE --------------------------------------------------
 var currentUser    = null;   // { id, email, name, role, position }
 var currentFormUser = null;
 var currentFormCompKey = null;
@@ -857,7 +853,7 @@ function localPersist() {
   try { localStorage.setItem('ywStaff', JSON.stringify({ users: LOCAL_DB.users, progress: LOCAL_DB.progress })); } catch(e){}
 }
 
-// ── INIT ──────────────────────────────────────────────────
+// -- INIT --------------------------------------------------
 window.addEventListener('DOMContentLoaded', function() {
   // Always go straight to login - no async session check
   document.getElementById('loadingScreen').style.display = 'none';
@@ -870,7 +866,7 @@ window.addEventListener('DOMContentLoaded', function() {
   document.getElementById('loginPw').addEventListener('keydown',    function(e){ if(e.key==='Enter') doLogin(); });
 });
 
-// ── AUTH ──────────────────────────────────────────────────
+// -- AUTH --------------------------------------------------
 function showReg()   { document.getElementById('loginPanel').style.display='none'; document.getElementById('regPanel').style.display='flex'; document.getElementById('regPanel').style.flexDirection='column'; }
 function showLogin() { document.getElementById('regPanel').style.display='none';   document.getElementById('loginPanel').style.display='flex'; document.getElementById('loginPanel').style.flexDirection='column'; }
 
@@ -943,7 +939,7 @@ async function doLogout() {
   showLogin();
 }
 
-// ── APP SHELL ──────────────────────────────────────────────
+// -- APP SHELL ----------------------------------------------
 function startApp() {
   document.getElementById('authScreen').style.display = 'none';
   document.getElementById('appScreen').style.display  = 'block';
@@ -991,7 +987,7 @@ function showPage(p) {
   }
 }
 
-// ── DATA HELPERS ──────────────────────────────────────────
+// -- DATA HELPERS ------------------------------------------
 async function getAllStaff() {
   if (USE_SUPABASE) {
     var rows = await sbGet('profiles', 'role=eq.staff');
@@ -1020,7 +1016,7 @@ async function saveProgress(userId, compKey, data) {
   }
 }
 
-// ── ADMIN ──────────────────────────────────────────────────
+// -- ADMIN --------------------------------------------------
 async function renderAdmin() {
   document.getElementById('pageAdmin').innerHTML = '<div style="padding:40px;text-align:center"><div class="spinner"></div></div>';
   var staff = await getAllStaff();
@@ -1188,7 +1184,7 @@ async function adminSignOff(uid, email, ck) {
   openValModal();
 }
 
-// ── MY COMPETENCIES ───────────────────────────────────────
+// -- MY COMPETENCIES ---------------------------------------
 async function renderMyComps() {
   document.getElementById('pageMyComp').innerHTML = '<div style="padding:40px;text-align:center"><div class="spinner"></div></div>';
   var u = currentUser;
@@ -1244,7 +1240,7 @@ async function openFormForComp(ck) {
   openForm();
 }
 
-// ── FORM ──────────────────────────────────────────────────
+// -- FORM --------------------------------------------------
 async function openForm() {
   showPage('form');
   await renderForm();
@@ -1362,7 +1358,7 @@ async function renderForm() {
   updateBar(n-1);
 }
 
-// ── CHECKBOX ──────────────────────────────────────────────
+// -- CHECKBOX ----------------------------------------------
 function tick(key, field, val) {
   if (!cbState[key]) cbState[key]={met:false,notMet:false};
   if (field==='met'   && val) cbState[key].notMet = false;
@@ -1430,7 +1426,7 @@ async function saveDraft() {
   toast('Draft saved!', true);
 }
 
-// ── SIGNATURES ────────────────────────────────────────────
+// -- SIGNATURES --------------------------------------------
 var _drawing = false;
 
 function initCanvas(id) {
@@ -1541,14 +1537,14 @@ async function submitValSig() {
   }, 800);
 }
 
-// ── BACK ──────────────────────────────────────────────────
+// -- BACK --------------------------------------------------
 function backFromForm() {
   document.getElementById('bbar').style.display='none';
   if (currentUser.role==='admin') showPage('admin');
   else showPage('mycomp');
 }
 
-// ── TESTS ────────────────────────────────────────────────
+// -- TESTS ------------------------------------------------
 async function getTestProgress(userId, testKey) {
   if (USE_SUPABASE) {
     var row = await sbGetOne('test_progress', 'user_id=eq.'+userId+'&test_key=eq.'+encodeURIComponent(testKey));
@@ -1600,7 +1596,7 @@ async function renderTests() {
     if (attempts > 0) {
       html += '<div style="margin-bottom:12px;font-size:13px;color:var(--muted)">Best score: <strong style="color:var(--navy)">'+bestScore+'%</strong></div>';
     }
-    html += '<button onclick="openTest(''+tk+'')" style="padding:9px 20px;background:'+(passed?'var(--green)':'var(--navy)')+';color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">'+(passed?'Review Test':'Take Test →')+'</button>';
+    html += '<button onclick="openTest(&quot;'+tk+'&quot;)" style="padding:9px 20px;background:'+(passed?'var(--green)':'var(--navy)')+';color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">'+(passed?'Review Test':'Take Test &rarr;')+'</button>';
     html += '</div>';
   }
   document.getElementById('pageTests').innerHTML = html;
@@ -1629,7 +1625,7 @@ function renderTestForm(showResults, resultData) {
     var scoreBorder = resultData.passed ? 'var(--green)' : 'var(--red)';
     html += '<div style="background:'+scoreBg+';border:1.5px solid '+scoreBorder+';border-radius:10px;padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;gap:16px">';
     html += '<span style="font-size:36px">'+(resultData.passed?'&#x2705;':'&#x274C;')+'</span>';
-    html += '<div><div style="font-size:22px;font-weight:700;color:'+scoreColor+'">'+resultData.score+'% — '+(resultData.passed?'PASSED':'NOT PASSED')+'</div>';
+    html += '<div><div style="font-size:22px;font-weight:700;color:'+scoreColor+'">'+resultData.score+'% - '+(resultData.passed?'PASSED':'NOT PASSED')+'</div>';
     html += '<div style="font-size:13px;color:var(--muted);margin-top:4px">'+(resultData.passed?'Congratulations! You passed the test.':'You need 80% or higher to pass. Review the questions below and try again.')+'</div></div></div>';
   }
 
@@ -1647,7 +1643,7 @@ function renderTestForm(showResults, resultData) {
     if (q.type === 'text') {
       html += '<textarea id="q_'+q.id+'" rows="4" placeholder="Type your answer here..." '+(showResults?'disabled':'')+' oninput="recordTextAnswer('+q.id+',this.value)" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;resize:vertical;">'+(userAns||'')+'</textarea>';
       if (showResults) {
-        html += '<div style="margin-top:8px;font-size:12px;color:'+(isCorrect?'var(--green)':'var(--red)')+';">'+(isCorrect?'&#x2713; Correct — all 6 rights identified':'&#x2715; Missing one or more rights. Required: Right Patient, Right Drug, Right Dose, Right Route, Right Time, Right Documentation')+'</div>';
+        html += '<div style="margin-top:8px;font-size:12px;color:'+(isCorrect?'var(--green)':'var(--red)')+';">'+(isCorrect?'&#x2713; Correct - all 6 rights identified':'&#x2715; Missing one or more rights. Required: Right Patient, Right Drug, Right Dose, Right Route, Right Time, Right Documentation')+'</div>';
       }
     } else {
       q.options.forEach(function(opt) {
@@ -1656,7 +1652,7 @@ function renderTestForm(showResults, resultData) {
         var isAnswer = showResults && letter === q.answer;
         var isWrong = showResults && isSelected && !isCorrect;
         html += '<label style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:6px;cursor:'+(showResults?'default':'pointer')+';margin-bottom:6px;background:'+(isAnswer&&showResults?'#dcfce7':isWrong?'#fee2e2':'transparent')+';">';
-        html += '<input type="radio" name="q'+q.id+'" value="'+letter+'" '+(isSelected?'checked':'')+' '+(showResults?'disabled':'')+' onchange="recordAnswer('+q.id+',''+letter+'')" style="margin-top:2px;accent-color:var(--mid)">';
+        html += '<input type="radio" name="q'+q.id+'" value="'+letter+'" '+(isSelected?'checked':'')+' '+(showResults?'disabled':'')+' onchange="recordAnswer('+q.id+',&quot;'+letter+'&quot;)" style="margin-top:2px;accent-color:var(--mid)">';
         html += '<span style="font-size:13px">'+esc(opt)+'</span>';
         if (isAnswer && showResults) html += '<span style="margin-left:auto;color:var(--green);font-weight:700;font-size:12px">&#x2713; Correct</span>';
         html += '</label>';
@@ -1667,7 +1663,7 @@ function renderTestForm(showResults, resultData) {
 
   html += '</div></div>';
   if (showResults && resultData && !resultData.passed) {
-    html += '<button onclick="openTest(''+currentTestKey+'')" style="padding:12px 28px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:32px">&#x1F504; Retake Test</button>';
+    html += '<button onclick="openTest(&quot;'+currentTestKey+'&quot;)" style="padding:12px 28px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:32px">&#x1F504; Retake Test</button>';
   }
   html += '</div>';
   document.getElementById('pageTest').innerHTML = html;
@@ -1736,7 +1732,7 @@ function backFromTest() {
   showPage('tests');
 }
 
-// ── PDF EXPORT ───────────────────────────────────────────
+// -- PDF EXPORT -------------------------------------------
 async function exportPDF() {
   var u  = currentFormUser;
   var ck = currentFormCompKey;
@@ -1806,7 +1802,7 @@ async function exportFromAdmin(uid, email, ck) {
   exportPDF();
 }
 
-// ── UTILS ─────────────────────────────────────────────────
+// -- UTILS -------------------------------------------------
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function toast(msg, ok) {
   var t=document.getElementById('toast');
