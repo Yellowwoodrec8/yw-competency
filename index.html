@@ -358,12 +358,19 @@ var SUPABASE_URL  = 'https://hxddospucgacwcqoorel.supabase.co';
 var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4ZGRvc3B1Y2dhY3djcW9vcmVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMDExNDYsImV4cCI6MjA5MzU3NzE0Nn0.aSRB3AwK9cTykcCJzWCZ82sjq0JH5o1N0Hlc0X-1IQg';
 // ============================================================
 
-// ── SUPABASE REST API (no SDK needed) ────────────────────
+// ── SUPABASE REST API (no auth SDK needed) ───────────────
 var USE_SUPABASE = (SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON !== 'YOUR_SUPABASE_ANON_KEY');
-var _authToken = null; // set after login
+
+// Simple hash function for passwords (not cryptographic but sufficient for internal tool)
+async function hashPass(pass) {
+  var encoder = new TextEncoder();
+  var data = encoder.encode(pass + 'yw_salt_2024');
+  var hash = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
 
 function sbHeaders(extra) {
-  var h = { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + ((_authToken)||SUPABASE_ANON) };
+  var h = { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON };
   return Object.assign(h, extra||{});
 }
 
@@ -395,49 +402,6 @@ async function sbUpsert(table, data, onConflict) {
   var url = SUPABASE_URL + '/rest/v1/' + table + '?on_conflict=' + (onConflict||'');
   var res = await fetch(url, { method:'POST', headers: sbHeaders({'Prefer':'resolution=merge-duplicates,return=representation'}), body: JSON.stringify(data) });
   return res.ok;
-}
-
-async function sbSignUp(email, password) {
-  var res = await fetch(SUPABASE_URL + '/auth/v1/signup', {
-    method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'apikey': SUPABASE_ANON,
-      'Authorization': 'Bearer ' + SUPABASE_ANON
-    },
-    body: JSON.stringify({email:email, password:password})
-  });
-  var json = await res.json();
-  console.log('SignUp raw response:', JSON.stringify(json));
-  return json;
-}
-
-async function sbSignIn(email, password) {
-  var res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
-    method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'apikey': SUPABASE_ANON,
-      'Authorization': 'Bearer ' + SUPABASE_ANON
-    },
-    body: JSON.stringify({email:email, password:password})
-  });
-  var json = await res.json();
-  console.log('SignIn raw response:', JSON.stringify(json));
-  return json;
-}
-
-async function sbSignOut() {
-  if (!_authToken) return;
-  await fetch(SUPABASE_URL + '/auth/v1/logout', {
-    method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'apikey': SUPABASE_ANON,
-      'Authorization': 'Bearer ' + _authToken
-    }
-  });
-  _authToken = null;
 }
 
 if (USE_SUPABASE) console.log('Supabase REST API ready:', SUPABASE_URL);
@@ -681,9 +645,8 @@ window.addEventListener('DOMContentLoaded', async function() {
       var saved = localStorage.getItem('yw_session');
       if (saved) {
         var sess = JSON.parse(saved);
-        _authToken = sess.token;
-        // Verify token still valid by fetching profile
-        var prof = await sbGetOne('profiles', 'id=eq.' + sess.userId);
+        // Verify session still valid by fetching profile
+        var prof = await sbGetOne('profiles', 'id=eq.' + sess.userId + '&password_hash=eq.' + sess.passHash);
         if (prof) {
           currentUser = { id: sess.userId, email: sess.email, name: prof.name, role: prof.role, position: prof.position };
           document.getElementById('setupBanner').style.display = 'none';
@@ -726,17 +689,13 @@ async function doLogin() {
   if (!email || !pass) { err.textContent='Please enter your email and password.'; err.style.display='block'; return; }
 
   if (USE_SUPABASE) {
-    var res = await sbSignIn(email, pass);
-    if (res.error || !res.access_token) { err.textContent = res.error_description||res.error||'Login failed.'; err.style.display='block'; return; }
-    _authToken = res.access_token;
-    var uid = res.user.id;
-    var prof = await sbGetOne('profiles', 'id=eq.' + uid);
-    if (!prof) { err.textContent='Profile not found. Contact admin.'; err.style.display='block'; return; }
-    currentUser = { id: uid, email: email, name: prof.name, role: prof.role, position: prof.position };
-    // Save session
-    try { localStorage.setItem('yw_session', JSON.stringify({token:_authToken, userId:uid, email:email})); } catch(e){}
+    var hashed = await hashPass(pass);
+    // Look up user by email and password hash directly in profiles table
+    var prof = await sbGetOne('profiles', 'email=eq.'+encodeURIComponent(email)+'&password_hash=eq.'+hashed);
+    if (!prof) { err.textContent='Email or password not recognized.'; err.style.display='block'; return; }
+    currentUser = { id: prof.id, email: email, name: prof.name, role: prof.role, position: prof.position };
+    try { localStorage.setItem('yw_session', JSON.stringify({userId:prof.id, email:email, passHash:hashed})); } catch(e){}
   } else {
-    // Local mode
     if (email === ADMAIL && pass === ADPASS) {
       currentUser = LOCAL_DB.users[ADMAIL];
     } else {
@@ -756,20 +715,22 @@ async function doRegister() {
   var err   = document.getElementById('regErr');
   err.style.display = 'none';
   if (!name||!email||!pass||!pos) { err.textContent='Please fill in all fields.'; err.style.display='block'; return; }
+  if (pass.length < 6) { err.textContent='Password must be at least 6 characters.'; err.style.display='block'; return; }
 
   if (USE_SUPABASE) {
-    var res = await sbSignUp(email, pass);
-    console.log('Signup response:', JSON.stringify(res));
-    if (res.error || !res.user) { 
-      var msg = res.msg || res.error_description || res.error || res.message || JSON.stringify(res);
-      err.textContent = 'Error: ' + msg; 
+    // Check if email already exists
+    var existing = await sbGetOne('profiles', 'email=eq.'+encodeURIComponent(email));
+    if (existing) { err.textContent='An account with this email already exists.'; err.style.display='block'; return; }
+    // Hash password and insert directly into profiles
+    var hashed = await hashPass(pass);
+    var uid = crypto.randomUUID ? crypto.randomUUID() : ('yw-'+Date.now()+'-'+Math.random().toString(36).substr(2,9));
+    var inserted = await sbInsert('profiles', { id: uid, name: name, email: email, password_hash: hashed, role: 'staff', position: pos });
+    if (!inserted || inserted.code) { 
+      err.textContent = 'Registration failed: ' + (inserted.message||JSON.stringify(inserted)); 
       err.style.display='block'; return; 
     }
-    var uid = res.user.id;
-    _authToken = res.access_token;
-    await sbInsert('profiles', { id: uid, name: name, email: email, role: 'staff', position: pos });
     currentUser = { id: uid, email: email, name: name, role: 'staff', position: pos };
-    try { localStorage.setItem('yw_session', JSON.stringify({token:_authToken, userId:uid, email:email})); } catch(e){}
+    try { localStorage.setItem('yw_session', JSON.stringify({userId:uid, email:email, passHash:hashed})); } catch(e){}
   } else {
     if (LOCAL_DB.users[email]) { err.textContent='An account with this email already exists.'; err.style.display='block'; return; }
     var u = { id: email, name: name, email: email, password: pass, role: 'staff', position: pos };
@@ -782,7 +743,7 @@ async function doRegister() {
 }
 
 async function doLogout() {
-  if (USE_SUPABASE) { await sbSignOut(); try { localStorage.removeItem('yw_session'); } catch(e){} }
+  if (USE_SUPABASE) { try { localStorage.removeItem('yw_session'); } catch(e){} }
   currentUser = null;
   document.getElementById('appScreen').style.display  = 'none';
   document.getElementById('authScreen').style.display = 'block';
