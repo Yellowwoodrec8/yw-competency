@@ -2037,7 +2037,7 @@ async function renderFloorCompForm() {
       html += '<td style="padding:8px;border:1px solid #e2e8f0;text-align:center"><span style="font-weight:700;color:'+selfColor+';font-size:16px">'+(selfScore||'-')+'</span></td>';
     } else {
       html += '<td style="padding:8px;border:1px solid #e2e8f0;text-align:center">';
-      html += '<select onchange="floorSelfScores['+i+']=this.value;saveFloorSelf()" style="width:60px;padding:4px;border:1px solid var(--border);border-radius:4px;font-family:inherit;font-size:13px;text-align:center">';
+      html += '<select id="self_score_'+i+'" onchange="setSelfScore('+i+',this.value)" style="width:60px;padding:4px;border:1px solid var(--border);border-radius:4px;font-family:inherit;font-size:13px;text-align:center">';
       html += '<option value="">-</option><option value="1" '+(selfScore==='1'?'selected':'')+'>1</option><option value="2" '+(selfScore==='2'?'selected':'')+'>2</option><option value="3" '+(selfScore==='3'?'selected':'')+'>3</option>';
       html += '</select></td>';
     }
@@ -2060,9 +2060,9 @@ async function renderFloorCompForm() {
     if (selfSigned && !fp.completed) {
       var curSc = currentSessionScores[i]||{};
       html += '<td style="padding:6px;border:1px solid #e2e8f0;text-align:center">';
-      html += '<select onchange="currentSessionScores['+i+']=(currentSessionScores['+i+']||{});currentSessionScores['+i+'].score=this.value" style="width:50px;padding:3px;border:1px solid var(--border);border-radius:4px;font-size:12px">';
+      html += '<select id="ss_score_'+i+'" onchange="setSessionScore('+i+',this.value,&quot;score&quot;)" style="width:50px;padding:3px;border:1px solid var(--border);border-radius:4px;font-size:12px">';
       html += '<option value="">-</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>';
-      html += '<br><select onchange="currentSessionScores['+i+']=(currentSessionScores['+i+']||{});currentSessionScores['+i+'].method=this.value" style="width:50px;padding:3px;border:1px solid var(--border);border-radius:4px;font-size:12px;margin-top:2px">';
+      html += '<br><select id="ss_method_'+i+'" onchange="setSessionScore('+i+',this.value,&quot;method&quot;)" style="width:50px;padding:3px;border:1px solid var(--border);border-radius:4px;font-size:12px;margin-top:2px">';
       html += '<option value="">M-</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option></select>';
       html += '</td>';
     }
@@ -2133,6 +2133,16 @@ function openFloorEmpModal() {
   document.getElementById('empSigName').value = currentUser.name;
   document.getElementById('empModal').style.display = 'flex';
   setTimeout(function(){ initCanvas('empCanvas'); }, 150);
+}
+
+function setSessionScore(idx, val, field) {
+  if (!currentSessionScores[idx]) currentSessionScores[idx] = {};
+  currentSessionScores[idx][field] = val;
+}
+
+function setSelfScore(idx, val) {
+  floorSelfScores[idx] = val;
+  saveFloorSelf();
 }
 
 async function submitFloorEmpSig() {
