@@ -562,6 +562,29 @@ const POS_LABELS = {
   administrative:"Administrative", dietary:"Dietary", maintenance:"Maintenance"
 };
 
+// Position-specific competency group label
+function compLabel(compKey, position) {
+  if (compKey === 'hand_hygiene_only') {
+    var map = {
+      doctor:"Physician Competencies",
+      dietary:"Dietary Staff Competencies",
+      maintenance:"Maintenance Staff Competencies",
+      administrative:"Administrative Competencies"
+    };
+    return map[position] || "Staff Competencies";
+  }
+  if (compKey === 'nurse') {
+    var map2 = {
+      nurse:"Nursing Staff Competencies",
+      counselor:"Clinical Staff Competencies",
+      therapist:"Clinical Staff Competencies",
+      tech:"Clinical Staff Competencies"
+    };
+    return map2[position] || "Staff Competencies";
+  }
+  return (COMPETENCIES[compKey]||{}).label || compKey;
+}
+
 
 // -- TESTS DATA --------------------------------------------
 const SIX_RIGHTS = ['patient','drug','dose','route','time','documentation'];
@@ -979,7 +1002,7 @@ function showPage(p) {
     document.getElementById('pageTest').classList.add('active');
     document.getElementById('bbar').style.display = 'flex';
   } else if (p === 'form') {
-    document.getElementById('topTitle').textContent = 'Competency Evaluation';
+    document.getElementById('topTitle').textContent = compLabel(currentFormCompKey, currentFormUser ? currentFormUser.position : '');
     document.getElementById('pageForm').classList.add('active');
     document.getElementById('bbar').style.display = 'flex';
   }
@@ -1253,7 +1276,7 @@ async function renderMyComps() {
 
     html += '<div class="comp-card">';
     html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">';
-    html += '<h3>'+esc(comp.label)+'</h3><span style="font-size:13px;font-weight:600;color:'+statusCol+'">'+statusTxt+'</span></div>';
+    html += '<h3>'+esc(compLabel(ck, u.position))+'</h3><span style="font-size:13px;font-weight:600;color:'+statusCol+'">'+statusTxt+'</span></div>';
     html += '<div class="meta">'+comp.sections.length+' sections &middot; '+total+' total criteria</div>';
     html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px"><div class="pbar" style="flex:1;height:8px"><div class="pfill '+fc+'" style="width:'+pct+'%"></div></div><span style="font-size:13px;font-weight:600;color:var(--navy)">'+marked+' / '+total+'</span></div>';
     if (!pr.val_signed) {
