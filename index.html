@@ -2168,7 +2168,7 @@ async function submitFloorEmpSig() {
 // Supervisor session modal
 function openFloorSupervisorModal() {
   _floorValMode = true;
-  currentSessionScores = {};
+  // Do NOT reset currentSessionScores here - scores are entered before modal opens
   _hasSigned.val = false;
   document.getElementById('valSigName').value = '';
   document.getElementById('valModal').style.display = 'flex';
