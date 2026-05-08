@@ -251,9 +251,10 @@ tbody td{padding:13px 16px;font-size:13px;vertical-align:middle;}
           <option value="counselor">Counselor</option>
           <option value="therapist">Therapist</option>
           <option value="doctor">Doctor / Physician</option>
-          <option value="case_manager">Case Manager</option>
           <option value="tech">Tech / BHT</option>
           <option value="administrative">Administrative</option>
+          <option value="dietary">Dietary</option>
+          <option value="maintenance">Maintenance</option>
         </select>
       </div>
       <button class="btn-primary" onclick="doRegister()">Create Account</button>
@@ -524,10 +525,9 @@ const COMPETENCIES = {
         "Documents results accurately in the patient record."
       ]}
     ]
-  }
-,
-  staff: {
-    label: "Staff Competencies",
+  },
+  hand_hygiene_only: {
+    label: "Hand Hygiene Competency",
     sections: [
       { title:"HAND HYGIENE", role:"All Staff", criteria:[
         "States dedication to patient safety and infection control.",
@@ -540,69 +540,6 @@ const COMPETENCIES = {
         "Performs hand hygiene after contact with a potentially contaminated inanimate object.",
         "Demonstrates proper technique: wets hands, applies soap, scrubs vigorously for 20+ seconds, rinses, dries with paper towel.",
         "Uses paper towel to turn off faucet."
-      ]},
-      { title:"OBSERVATION ROUNDS", role:"All Staff", criteria:[
-        "States knowledge and understanding of relevant policies, including detoxification policy and observations policy.",
-        "Demonstrates knowledge of observation rounds documentation requirements.",
-        "States knowledge of emergency procedures and code responses.",
-        "Demonstrates correct frequency and timing of rounds per facility policy.",
-        "Correctly documents patient location, behavior, and status during each round.",
-        "Identifies and reports any patient safety concerns immediately.",
-        "Verifies patient is visible and accounted for during each round."
-      ]},
-      { title:"VITAL SIGNS", role:"All Staff", criteria:[
-        "Demonstrates obtaining blood pressure. States knowledge of blood pressure, normal ranges, and abnormal findings.",
-        "Demonstrates obtaining pulse. States knowledge of pulse, normal ranges, and abnormal findings.",
-        "Demonstrates obtaining respirations. States knowledge of normal ranges and abnormal findings.",
-        "Demonstrates use and understanding of digital thermometer. States knowledge of normal ranges and abnormal findings.",
-        "Demonstrates use of pulse oximeter. States knowledge of normal oxygen saturation ranges and abnormal findings.",
-        "Accurately documents all vital signs.",
-        "Identifies and communicates critical values to appropriate personnel in a timely manner."
-      ]},
-      { title:"MEDICATION ADMINISTRATION", role:"All Staff", criteria:[
-        "Washes hands prior to medication preparation.",
-        "Compares individual patient's labeled drugs with each drug listed on the MAR for administration at that time.",
-        "Compares stock medication label with medication listed on the MAR for administration at that time.",
-        "Prepares medication for patient self-administration.",
-        "If medication is a narcotic, signs out on the count sheet.",
-        "Verifies the six rights of medication administration: right patient, right drug, right dose, right route, right time, right documentation.",
-        "Identifies patient using two identifiers prior to medication administration.",
-        "Documents medication administration in the MAR immediately after administration.",
-        "Knows appropriate action for a missed or refused medication.",
-        "Recognizes and reports signs of adverse drug reactions or side effects."
-      ]},
-      { title:"PREGNANCY CASSETTE TEST", role:"All Staff", criteria:[
-        "Identifies patient and explains the procedure.",
-        "Puts on gloves prior to handling specimen.",
-        "Collects urine sample in a sterile specimen cup.",
-        "Removes hCG test cassette from sealed pouch immediately before use.",
-        "Places cassette on a clean, flat, dry disposable surface.",
-        "Holds pipette vertically and transfers 3 full drops of urine to the specimen well (S), then starts timer.",
-        "Reads results at correct time per manufacturer instructions (not before 1 min, not after 10 min).",
-        "Correctly interprets positive, negative, and invalid results.",
-        "Documents results and reports positive results per facility protocol.",
-        "Disposes of specimen and materials as biohazardous waste."
-      ]},
-      { title:"INSTANT URINE DRUG SCREEN (UDS)", role:"All Staff", criteria:[
-        "Identifies patient. Confirms consent for testing is signed upon admission. Explains procedure to patient.",
-        "Removes cup from sealed pouch and gives patient the sealed specimen cup to use immediately. Confirms specimen exceeds the minimum urine level line.",
-        "Puts on gloves to receive drug screen from patient.",
-        "Peels off label on cup body to view the test result window.",
-        "Reads test results at 5 minutes; does not read after 10 minutes.",
-        "Correctly interprets positive, negative, and invalid results.",
-        "Documents results and follows facility protocol for preliminary positive results.",
-        "Disposes of materials appropriately as biohazardous waste."
-      ]},
-      { title:"BREATHALYZER", role:"All Staff", criteria:[
-        "Identifies patient. Confirms consent for testing is signed upon admission. Explains procedure to patient.",
-        "Ensures patient has not put anything in their mouth for 15 minutes prior to the test; completes 15-minute observation period if needed.",
-        "Puts on gloves.",
-        "Removes mouthpiece from wrapper without touching the patient end; attaches mouthpiece to port on left side of BACtrack unit.",
-        "Presses Power button - unit beeps and lights up.",
-        "Waits for countdown to reach 0, then instructs patient to blow firmly and steadily until the machine clicks; reads and documents results.",
-        "Recognizes that a Flo result indicates an error and restarts the process.",
-        "Removes mouthpiece from left side port; presses Power button to turn unit off.",
-        "Documents results and follows facility protocol for positive readings."
       ]}
     ]
   }
@@ -610,18 +547,19 @@ const COMPETENCIES = {
 
 const POS_COMPS = {
   nurse:          ["nurse"],
-  counselor:      ["staff"],
-  therapist:      ["staff"],
-  tech:           ["staff"],
-  doctor:         ["nurse"],
-  case_manager:   [],
-  administrative: []
+  counselor:      ["nurse"],
+  therapist:      ["nurse"],
+  tech:           ["nurse"],
+  doctor:         ["hand_hygiene_only"],
+  administrative: [],
+  dietary:        ["hand_hygiene_only"],
+  maintenance:    ["hand_hygiene_only"]
 };
 
 const POS_LABELS = {
   nurse:"Nurse (LVN/RN)", counselor:"Counselor", therapist:"Therapist",
-  doctor:"Doctor / Physician", case_manager:"Case Manager",
-  tech:"Tech / BHT", administrative:"Administrative"
+  doctor:"Doctor / Physician", tech:"Tech / BHT",
+  administrative:"Administrative", dietary:"Dietary", maintenance:"Maintenance"
 };
 
 
@@ -874,12 +812,13 @@ const TESTS = {
 // Which tests each position must take
 const POS_TESTS = {
   nurse:          ["medication","uds","glucometer","pregnancy"],
-  counselor:      ["medication","uds","pregnancy"],
-  therapist:      ["medication","uds","pregnancy"],
-  doctor:         ["medication","uds","glucometer","pregnancy"],
-  case_manager:   ["medication","uds","pregnancy"],
-  tech:           ["medication","uds","pregnancy"],
-  administrative: ["medication","uds","pregnancy"]
+  counselor:      ["medication","uds","glucometer","pregnancy"],
+  therapist:      ["medication","uds","glucometer","pregnancy"],
+  tech:           ["medication","uds","glucometer","pregnancy"],
+  doctor:         [],
+  administrative: [],
+  dietary:        [],
+  maintenance:    []
 };
 
 // -- STATE --------------------------------------------------
