@@ -245,6 +245,7 @@ tbody td{padding:13px 16px;font-size:13px;vertical-align:middle;}
       <div class="fg"><label>Password</label><input type="password" id="loginPw" placeholder="Enter your password"></div>
       <button class="btn-primary" onclick="doLogin()">Sign In</button>
       <div class="switch-link">No account? <a onclick="showReg()">Register here</a></div>
+      <div class="switch-link" style="margin-top:8px"><a onclick="showCodePanel()">I have a trainer sign-off code</a></div>
     </div>
     <div class="auth-right" id="regPanel" style="display:none">
       <h2>Create account</h2>
@@ -268,6 +269,19 @@ tbody td{padding:13px 16px;font-size:13px;vertical-align:middle;}
       </div>
       <button class="btn-primary" onclick="doRegister()">Create Account</button>
       <div class="switch-link">Have an account? <a onclick="showLogin()">Sign in</a></div>
+    </div>
+
+    <!-- Sign-Off Code Panel -->
+    <div class="auth-right" id="codePanel" style="display:none">
+      <h2>Trainer Sign-Off</h2>
+      <p class="sub">Enter the code provided by the employee</p>
+      <div class="err" id="codeErr"></div>
+      <div class="fg">
+        <label>6-Digit Sign-Off Code</label>
+        <input type="text" id="codeInput" placeholder="e.g. 482916" maxlength="6" style="font-family:monospace;letter-spacing:6px;font-size:24px;text-align:center;">
+      </div>
+      <button class="btn-primary" onclick="submitSignOffCode()">Access Form</button>
+      <div class="switch-link"><a onclick="showLogin()">&#8592; Back to sign in</a></div>
     </div>
   </div>
 </div>
@@ -1026,8 +1040,9 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 
 // -- AUTH --------------------------------------------------
-function showReg()   { document.getElementById('loginPanel').style.display='none'; document.getElementById('regPanel').style.display='flex'; document.getElementById('regPanel').style.flexDirection='column'; }
-function showLogin() { document.getElementById('regPanel').style.display='none';   document.getElementById('loginPanel').style.display='flex'; document.getElementById('loginPanel').style.flexDirection='column'; }
+function showReg()   { document.getElementById('loginPanel').style.display='none'; document.getElementById('regPanel').style.display='flex'; document.getElementById('regPanel').style.flexDirection='column'; document.getElementById('codePanel').style.display='none'; }
+function showLogin() { document.getElementById('regPanel').style.display='none'; document.getElementById('codePanel').style.display='none'; document.getElementById('loginPanel').style.display='flex'; document.getElementById('loginPanel').style.flexDirection='column'; }
+function showCodePanel() { document.getElementById('loginPanel').style.display='none'; document.getElementById('regPanel').style.display='none'; document.getElementById('codePanel').style.display='flex'; document.getElementById('codePanel').style.flexDirection='column'; document.getElementById('codeInput').value=''; document.getElementById('codeErr').style.display='none'; }
 
 async function doLogin() {
   var email = (document.getElementById('loginEmail').value||'').trim().toLowerCase();
@@ -2313,9 +2328,9 @@ async function renderFloorCompForm() {
 
     if (!fp.completed) {
       html += '<button onclick="openFloorSupervisorModal()" style="padding:10px 22px;background:var(--mid);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">+ Add Supervisor Session</button>';
-
+      html += ' <button onclick="generateSignOffCode()" style="padding:10px 22px;background:white;color:var(--navy);border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;margin-left:8px">Generate Trainer Code</button>';
       if (allCovered || sessions.length > 0) {
-        html += '&nbsp;<button onclick="markFloorCompComplete()" style="padding:10px 22px;background:var(--green);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;margin-left:8px">Mark as Complete</button>';
+        html += ' <button onclick="markFloorCompComplete()" style="padding:10px 22px;background:var(--green);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;margin-left:8px">Mark as Complete</button>';
       }
     } else {
       html += '<div style="color:var(--green);font-weight:600;font-size:14px"> All training sessions complete!</div>';
@@ -2564,6 +2579,118 @@ async function exportFromAdmin(uid, email, ck) {
 }
 
 // -- UTILS -------------------------------------------------
+// -- SIGN-OFF CODE SYSTEM ------------------------------------
+
+function generateCode() {
+  // Generate a random 6-digit code
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+async function createSignOffCode(userId, compKey) {
+  var code = generateCode();
+  var expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
+  var data = {
+    code: code,
+    user_id: userId,
+    comp_key: compKey,
+    expires_at: expires,
+    used: false
+  };
+  if (USE_SUPABASE) {
+    await sbInsert('signoff_codes', data);
+  } else {
+    if (!LOCAL_DB.signoff_codes) LOCAL_DB.signoff_codes = {};
+    LOCAL_DB.signoff_codes[code] = data;
+    localPersist();
+  }
+  return code;
+}
+
+async function validateSignOffCode(code) {
+  if (USE_SUPABASE) {
+    var row = await sbGetOne('signoff_codes', 'code=eq.'+code+'&used=eq.false');
+    if (!row) return null;
+    if (new Date(row.expires_at) < new Date()) return null;
+    return row;
+  } else {
+    var row = (LOCAL_DB.signoff_codes||{})[code];
+    if (!row || row.used) return null;
+    if (new Date(row.expires_at) < new Date()) return null;
+    return row;
+  }
+}
+
+async function markCodeUsed(code) {
+  if (USE_SUPABASE) {
+    await sbUpdate('signoff_codes', 'code=eq.'+code, { used: true });
+  } else {
+    if (LOCAL_DB.signoff_codes && LOCAL_DB.signoff_codes[code]) {
+      LOCAL_DB.signoff_codes[code].used = true;
+      localPersist();
+    }
+  }
+}
+
+async function submitSignOffCode() {
+  var code = (document.getElementById('codeInput').value||'').trim();
+  var err = document.getElementById('codeErr');
+  err.style.display = 'none';
+  if (code.length !== 6 || !/^\d+$/.test(code)) {
+    err.textContent = 'Please enter a valid 6-digit code.';
+    err.style.display = 'block'; return;
+  }
+  var row = await validateSignOffCode(code);
+  if (!row) {
+    err.textContent = 'Code not found, already used, or expired. Ask the employee to generate a new one.';
+    err.style.display = 'block'; return;
+  }
+  // Load the employee and their floor comp
+  var uid = row.user_id;
+  var compKey = row.comp_key;
+  var u = USE_SUPABASE ? (await sbGetOne('profiles', 'id=eq.'+uid)) : Object.values(LOCAL_DB.users).find(function(u){ return u.id===uid; });
+  if (!u) {
+    err.textContent = 'Employee not found. Please contact your administrator.';
+    err.style.display = 'block'; return;
+  }
+  // Mark code as used
+  await markCodeUsed(code);
+  // Hide auth screen and show the floor comp form in trainer mode
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+  // Set up a minimal trainer session - no full login needed
+  currentUser = { id: 'trainer_guest', email: 'trainer', name: 'Trainer', role: 'trainer', position: 'trainer' };
+  // Set up sidebar for guest trainer
+  document.getElementById('sbAvatar').textContent = 'T';
+  document.getElementById('sbName').textContent = 'Trainer Session';
+  document.getElementById('sbRole').textContent = 'Sign-off access only';
+  document.getElementById('sidebarNav').innerHTML = '';
+  // Go straight to the floor comp form
+  currentFormUser = Object.assign({}, u, { id: uid });
+  currentFloorCompKey = compKey;
+  _floorAdminView = false;
+  var fp = await getFloorCompProgress(uid, compKey);
+  floorSelfScores = fp.self_scores ? JSON.parse(fp.self_scores) : {};
+  currentSessionScores = {};
+  ['pageAdmin','pageMyComp','pageForm','pageTests','pageTest'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.remove('active'); });
+  document.getElementById('bbar').style.display = 'none';
+  document.getElementById('topTitle').textContent = 'Training Sign-Off — ' + esc(u.name);
+  document.getElementById('pageForm').classList.add('active');
+  renderFloorCompForm();
+}
+
+// Generate code button handler (called from floor comp form)
+async function generateSignOffCode() {
+  var u = currentUser;
+  var uid = u.id || u.email;
+  var fck = currentFloorCompKey || POS_FLOOR_COMP[u.position];
+  if (!fck) { toast('No floor competency found.'); return; }
+  var code = await createSignOffCode(uid, fck);
+  // Show the code in a modal-style alert
+  var msg = 'Your sign-off code is:\n\n' + code + '\n\nShare this code with your trainer. It expires in 7 days and can only be used once. They will go to the app login page and click \'I have a trainer sign-off code\'.';
+  alert(msg);
+  toast('Code generated: ' + code, true);
+}
+
 function closeHelp() {
   document.getElementById('helpModal').style.display = 'none';
 }
