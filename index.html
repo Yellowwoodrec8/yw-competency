@@ -335,6 +335,7 @@ tbody td{padding:13px 16px;font-size:13px;vertical-align:middle;}
     <h3>&#x2713; Validator Signature</h3>
     <p>Review the completed competency form and sign below to certify accuracy. No account required.</p>
     <div class="fg"><label>Your Full Name</label><input type="text" id="valSigName" placeholder="e.g. Dr. Sarah Johnson"></div>
+    <div class="fg" id="valDateField" style="display:none"><label>Session Date</label><input type="date" id="valSessionDate" style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;outline:none;"></div>
     <div class="fg">
       <label>Draw Your Signature</label>
       <div style="position:relative;border:1.5px solid var(--border);border-radius:8px;background:#fafafa;overflow:hidden;">
@@ -1102,6 +1103,7 @@ async function renderAdmin() {
 
   // Load all progress
   var allProgress = {};
+  var allFloorProgress = {};
   for (var i = 0; i < staff.length; i++) {
     var u = staff[i];
     var uid = USE_SUPABASE ? u.id : u.email;
@@ -1109,6 +1111,11 @@ async function renderAdmin() {
     var comps = POS_COMPS[u.position]||[];
     for (var j = 0; j < comps.length; j++) {
       allProgress[uid][comps[j]] = await getProgress(uid, comps[j]);
+    }
+    // Load floor comp progress
+    var fck = POS_FLOOR_COMP[u.position];
+    if (fck) {
+      allFloorProgress[uid] = await getFloorCompProgress(uid, fck);
     }
   }
 
@@ -1129,8 +1136,8 @@ async function renderAdmin() {
 
   // Staff table
   html += '<div class="card"><div class="card-hdr"><h2>All Staff Members</h2><input class="search" placeholder="Search..." oninput="filterStaff(this.value)"></div>';
-  html += '<table><thead><tr><th>Name</th><th>Position</th><th>Progress</th><th>Status</th><th></th></tr></thead>';
-  html += '<tbody id="staffTbody">' + staffRows(staff, allProgress) + '</tbody></table></div>';
+  html += '<table><thead><tr><th>Name</th><th>Position</th><th>Progress</th><th>Status</th><th>Floor Training</th><th></th></tr></thead>';
+  html += '<tbody id="staffTbody">' + staffRows(staff, allProgress, allFloorProgress) + '</tbody></table></div>';
 
   // Pending sign-offs
   var pendingItems = [];
@@ -1241,7 +1248,7 @@ function calcProgress(u, progMap) {
   return { pct: total ? Math.round(marked/total*100) : 0, allDone: allDone && comps.length>0, hasPending: hasPending };
 }
 
-function staffRows(users, allProgress) {
+function staffRows(users, allProgress, allFloorProgress) {
   if (!users.length) return '<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--muted)">No staff registered yet.</td></tr>';
   return users.map(function(u){
     var uid = USE_SUPABASE ? u.id : u.email;
@@ -1250,11 +1257,28 @@ function staffRows(users, allProgress) {
     var badge = prog.allDone ? '<span class="badge b-green">Complete</span>' :
                 prog.hasPending ? '<span class="badge b-amber">Awaiting Sign-Off</span>' :
                 '<span class="badge b-gray">In Progress</span>';
+    // Floor comp status
+    var fck2 = POS_FLOOR_COMP[u.position];
+    var fp2 = (allFloorProgress && allFloorProgress[uid]) || {};
+    var floorBadge = '';
+    if (!fck2) {
+      floorBadge = '<span class="badge b-gray" style="opacity:.4">N/A</span>';
+    } else if (fp2.completed) {
+      floorBadge = '<span class="badge b-green">Complete</span>';
+    } else if (fp2.self_signed) {
+      var sess = fp2.sessions ? JSON.parse(fp2.sessions) : [];
+      floorBadge = '<span class="badge b-amber">Training ('+sess.length+' sessions)</span>';
+    } else if (fp2.self_scores) {
+      floorBadge = '<span class="badge b-blue">Self-Assess Done</span>';
+    } else {
+      floorBadge = '<span class="badge b-gray">Not Started</span>';
+    }
     return '<tr onclick="viewStaff(\''+uid+'\',\''+u.email+'\')">'
       +'<td><strong>'+esc(u.name)+'</strong><br><span style="font-size:11px;color:var(--muted)">'+esc(u.email)+'</span></td>'
       +'<td>'+(POS_LABELS[u.position]||u.position)+'</td>'
       +'<td><div style="display:flex;align-items:center;gap:8px"><div class="pbar"><div class="pfill '+fc+'" style="width:'+prog.pct+'%"></div></div><span style="font-size:12px;color:var(--muted)">'+prog.pct+'%</span></div></td>'
       +'<td>'+badge+'</td>'
+      +'<td>'+floorBadge+'</td>'
       +'<td style="color:var(--mid);font-weight:600;font-size:12px">View &rarr;</td>'
       +'</tr>';
   }).join('');
@@ -1632,6 +1656,8 @@ async function submitEmpSig() {
 function openValModal() {
   _floorValMode=false;
   _hasSigned.val=false;
+  var df = document.getElementById('valDateField');
+  if (df) df.style.display = 'none';
   document.getElementById('valSigName').value='';
   document.getElementById('valModal').style.display='flex';
   setTimeout(function(){ initCanvas('valCanvas'); }, 150);
@@ -1994,8 +2020,7 @@ async function renderFloorCompForm() {
   html += '<div class="sec-card"><div class="sec-title">'+esc(fc.label)+'</div><div class="grid2" style="padding:20px 24px;">';
   html += '<div class="field"><label>Employee Name</label><input type="text" value="'+esc(u.name)+'" readonly></div>';
   html += '<div class="field"><label>Position</label><input type="text" value="'+esc(fc.position)+'" readonly></div>';
-  html += '<div class="field"><label>Date of Hire</label><input type="date" id="fc_doh" value="'+(fp.date_of_hire||'')+'" '+(selfSigned?'disabled':'')+' oninput="saveFloorInfoFields()"></div>';
-  html += '<div class="field"><label>Mentor Assigned</label><input type="text" id="fc_mentor" value="'+(fp.mentor||'')+'" '+(selfSigned?'disabled':'')+' oninput="saveFloorInfoFields()"></div>';
+  html += '<div class="field"><label>Date of Hire</label><input type="date" id="fc_doh" value="'+(fp.date_of_hire||'')+'" oninput="saveFloorInfoFields()"></div>';
   html += '</div></div>';
 
   // Legend
@@ -2080,7 +2105,7 @@ async function renderFloorCompForm() {
     html += '</div></div>';
   } else {
     // Supervisor sessions
-    html += '<div class="val-section"><div class="val-hdr"><h3>Step 2 - Supervisor Sign-Off Sessions</h3><p>Each supervisor who trains the employee adds a session with their scores and signature. Multiple sessions can be added over the first week.</p></div>';
+    html += '<div class="val-section"><div class="val-hdr"><h3>Step 2 - Training Sign-Off Sessions</h3><p>Each staff member who trains the employee adds a session with their scores and signature. Multiple sessions can be added over the first week.</p></div>';
     html += '<div style="padding:20px 24px">';
 
     // Show existing sessions
@@ -2088,7 +2113,7 @@ async function renderFloorCompForm() {
       html += '<div style="background:#f0fdf4;border:1px solid var(--green);border-radius:8px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px">';
       html += '<span style="font-size:20px"></span>';
       html += '<div><div style="font-weight:600;color:#065f46">Session '+(si+1)+': '+esc(s.name)+'</div>';
-      html += '<div style="font-size:12px;color:var(--muted)">'+(s.date?new Date(s.date).toLocaleDateString():'')+' &middot; Items scored: '+Object.keys(s.scores||{}).filter(function(k){return s.scores[k].score;}).length+'/'+fc.items.length+'</div></div>';
+      html += '<div style="font-size:12px;color:var(--muted)">'+(s.date?(s.date.includes('T')?new Date(s.date).toLocaleDateString():new Date(s.date+'T00:00:00').toLocaleDateString()):'')+' &middot; Items scored: '+Object.keys(s.scores||{}).filter(function(k){return s.scores[k].score;}).length+'/'+fc.items.length+'</div></div>';
       if (s.sig_img) html += '<img src="'+s.sig_img+'" style="height:36px;max-width:120px;object-fit:contain;margin-left:auto;border-radius:4px" alt="sig">';
       html += '</div>';
     });
@@ -2119,10 +2144,8 @@ async function saveFloorInfoFields() {
   var u = currentUser;
   var uid = u.id || u.email;
   var doh = document.getElementById('fc_doh');
-  var mentor = document.getElementById('fc_mentor');
   var data = {};
   if (doh && doh.value) data.date_of_hire = doh.value;
-  if (mentor && mentor.value) data.mentor = mentor.value;
   if (Object.keys(data).length) await saveFloorCompProgress(uid, currentFloorCompKey, data);
 }
 
@@ -2168,9 +2191,10 @@ async function submitFloorEmpSig() {
 // Supervisor session modal
 function openFloorSupervisorModal() {
   _floorValMode = true;
-  // Do NOT reset currentSessionScores here - scores are entered before modal opens
   _hasSigned.val = false;
   document.getElementById('valSigName').value = '';
+  document.getElementById('valSessionDate').value = '';
+  document.getElementById('valDateField').style.display = 'block';
   document.getElementById('valModal').style.display = 'flex';
   setTimeout(function(){ initCanvas('valCanvas'); }, 150);
 }
@@ -2188,9 +2212,11 @@ async function submitFloorSupervisorSession() {
   var fp = await getFloorCompProgress(uid, currentFloorCompKey);
   var sessions = fp.sessions ? JSON.parse(fp.sessions) : [];
 
+  var sessionDateVal = (document.getElementById('valSessionDate').value||'');
+  if (!sessionDateVal) { toast('Please select the session date.'); return; }
   sessions.push({
     name: name,
-    date: new Date().toISOString(),
+    date: sessionDateVal,
     sig_img: sigImg,
     scores: currentSessionScores
   });
