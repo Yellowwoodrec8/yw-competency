@@ -1136,7 +1136,7 @@ async function renderAdmin() {
 
   // Staff table
   html += '<div class="card"><div class="card-hdr"><h2>All Staff Members</h2><input class="search" placeholder="Search..." oninput="filterStaff(this.value)"></div>';
-  html += '<table><thead><tr><th>Name</th><th>Position</th><th>Progress</th><th>Status</th><th>Floor Training</th><th></th></tr></thead>';
+  html += '<table><thead><tr><th>Name</th><th>Position</th><th>Progress</th><th>Status</th><th>Floor Training</th></tr></thead>';
   html += '<tbody id="staffTbody">' + staffRows(staff, allProgress, allFloorProgress) + '</tbody></table></div>';
 
   // Pending sign-offs
@@ -1261,7 +1261,7 @@ function staffRows(users, allProgress, allFloorProgress) {
     var fck2 = POS_FLOOR_COMP[u.position];
     var fp2 = (allFloorProgress && allFloorProgress[uid]) || {};
     var floorBadge = '';
-    var floorClick = fck2 ? 'onclick="event.stopPropagation();viewStaffFloorComp(&quot;'+uid+'&quot;,&quot;'+u.email+'&quot;)" style="cursor:pointer;text-decoration:underline"' : '';
+    var floorClick = fck2 ? 'onclick="viewStaffFloorComp(&quot;'+uid+'&quot;,&quot;'+u.email+'&quot;)" style="cursor:pointer;text-decoration:underline"' : '';
     if (!fck2) {
       floorBadge = '<span class="badge b-gray" style="opacity:.4">N/A</span>';
     } else if (fp2.completed) {
@@ -1274,13 +1274,13 @@ function staffRows(users, allProgress, allFloorProgress) {
     } else {
       floorBadge = '<span class="badge b-gray" '+floorClick+'>Not Started</span>';
     }
-    return '<tr onclick="viewStaff(\''+uid+'\',\''+u.email+'\')">'
-      +'<td><strong>'+esc(u.name)+'</strong><br><span style="font-size:11px;color:var(--muted)">'+esc(u.email)+'</span></td>'
+    return '<tr>'
+      +'<td onclick="viewStaff(\''+uid+'\',\''+u.email+'\')" style="cursor:pointer"><strong>'+esc(u.name)+'</strong><br><span style="font-size:11px;color:var(--muted)">'+esc(u.email)+'</span><br><span style="font-size:11px;color:var(--mid);font-weight:600">View comps &rarr;</span></td>'
       +'<td>'+(POS_LABELS[u.position]||u.position)+'</td>'
       +'<td><div style="display:flex;align-items:center;gap:8px"><div class="pbar"><div class="pfill '+fc+'" style="width:'+prog.pct+'%"></div></div><span style="font-size:12px;color:var(--muted)">'+prog.pct+'%</span></div></td>'
       +'<td>'+badge+'</td>'
       +'<td>'+floorBadge+'</td>'
-      +'<td style="color:var(--mid);font-weight:600;font-size:12px">View &rarr;</td>'
+
       +'</tr>';
   }).join('');
 }
