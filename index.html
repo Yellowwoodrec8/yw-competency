@@ -1261,17 +1261,18 @@ function staffRows(users, allProgress, allFloorProgress) {
     var fck2 = POS_FLOOR_COMP[u.position];
     var fp2 = (allFloorProgress && allFloorProgress[uid]) || {};
     var floorBadge = '';
+    var floorClick = fck2 ? 'onclick="viewStaffFloorComp(\''+uid+'\',\''+u.email+'\')" style="cursor:pointer"' : '';
     if (!fck2) {
       floorBadge = '<span class="badge b-gray" style="opacity:.4">N/A</span>';
     } else if (fp2.completed) {
-      floorBadge = '<span class="badge b-green">Complete</span>';
+      floorBadge = '<span class="badge b-green" '+floorClick+'>&#x2705; Complete</span>';
     } else if (fp2.self_signed) {
       var sess = fp2.sessions ? JSON.parse(fp2.sessions) : [];
-      floorBadge = '<span class="badge b-amber">Training ('+sess.length+' sessions)</span>';
+      floorBadge = '<span class="badge b-amber" '+floorClick+'>&#x23F3; Training ('+sess.length+' sessions)</span>';
     } else if (fp2.self_scores) {
-      floorBadge = '<span class="badge b-blue">Self-Assess Done</span>';
+      floorBadge = '<span class="badge b-blue" '+floorClick+'>Self-Assess Done</span>';
     } else {
-      floorBadge = '<span class="badge b-gray">Not Started</span>';
+      floorBadge = '<span class="badge b-gray" '+floorClick+'>Not Started</span>';
     }
     return '<tr onclick="viewStaff(\''+uid+'\',\''+u.email+'\')">'
       +'<td><strong>'+esc(u.name)+'</strong><br><span style="font-size:11px;color:var(--muted)">'+esc(u.email)+'</span></td>'
@@ -1926,6 +1927,7 @@ var floorSelfScores = {};
 var currentSessionScores = {};
 var _floorEmpMode = false;
 var _floorValMode = false;
+var _floorAdminView = false;  // true when admin is viewing someone else's form
 
 // -- FLOOR COMP DATA HELPERS ----------------------------------
 async function getFloorCompProgress(userId, compKey) {
@@ -1985,6 +1987,118 @@ async function renderFloorCompCard(u, uid, container) {
 }
 
 // -- OPEN FLOOR COMP ------------------------------------------
+async function viewStaffFloorComp(uid, email) {
+  var u = USE_SUPABASE ? (await sbGetOne('profiles','id=eq.'+uid)) : LOCAL_DB.users[email];
+  if (!u) { toast('Staff member not found.'); return; }
+  u = Object.assign({}, u, { id: uid, email: email });
+  var fck = POS_FLOOR_COMP[u.position];
+  if (!fck || !FLOOR_COMPS[fck]) { toast('No position-based competency for this role.'); return; }
+
+  // Set up as if we are viewing their form
+  currentFormUser = u;
+  currentFloorCompKey = fck;
+  _floorAdminView = true;
+  var fp = await getFloorCompProgress(uid, fck);
+  floorSelfScores = fp.self_scores ? JSON.parse(fp.self_scores) : {};
+  currentSessionScores = {};
+
+  // Navigate to form page
+  ['pageAdmin','pageMyComp','pageForm','pageTests','pageTest'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.remove('active'); });
+  document.getElementById('bbar').style.display = 'none';
+  document.getElementById('topTitle').textContent = FLOOR_COMPS[fck].label + ' - ' + esc(u.name);
+  document.getElementById('pageForm').classList.add('active');
+  renderFloorCompFormAdmin(u, uid, fck, fp);
+}
+
+async function renderFloorCompFormAdmin(u, uid, fck, fp) {
+  var fc = FLOOR_COMPS[fck];
+  var selfScores = fp.self_scores ? JSON.parse(fp.self_scores) : {};
+  var sessions   = fp.sessions ? JSON.parse(fp.sessions) : [];
+  var selfSigned = !!fp.self_signed;
+
+  var html = '<button class="btn-back" onclick="backFromFloorCompAdmin()">&#8592; Back to Dashboard</button>';
+  html += '<div class="form-wrap">';
+
+  // Status banner
+  if (fp.completed) {
+    html += '<div class="success-banner"><span style="font-size:24px">&#x2705;</span><div><div style="font-weight:700;color:#065f46">Position Training Complete</div><div style="font-size:12px;color:#059669">'+sessions.length+' training session(s) completed</div></div></div>';
+  } else if (selfSigned) {
+    html += '<div style="background:#fef3c7;border:1.5px solid var(--amber);border-radius:10px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px"><span style="font-size:22px">&#x23F3;</span><div><div style="font-weight:700;color:#92400e">In Training — '+sessions.length+' session(s) completed</div><div style="font-size:12px;color:#b45309">Employee signed self-assessment on '+( fp.self_signed_at?new Date(fp.self_signed_at).toLocaleDateString():'N/A')+'</div></div></div>';
+  } else {
+    html += '<div style="background:#f1f5f9;border:1.5px solid var(--border);border-radius:10px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px"><span style="font-size:22px">&#x1F4CB;</span><div><div style="font-weight:700;color:var(--navy)">Self-Assessment Not Yet Completed</div><div style="font-size:12px;color:var(--muted)">Employee has not signed their self-assessment yet.</div></div></div>';
+  }
+
+  // Info
+  html += '<div class="sec-card"><div class="sec-title">'+esc(fc.label)+'</div><div class="grid2" style="padding:20px 24px">';
+  html += '<div class="field"><label>Employee Name</label><input type="text" value="'+esc(u.name)+'" readonly></div>';
+  html += '<div class="field"><label>Position</label><input type="text" value="'+esc(fc.position)+'" readonly></div>';
+  html += '<div class="field"><label>Date of Hire</label><input type="date" value="'+(fp.date_of_hire||'')+'" disabled></div>';
+  html += '</div></div>';
+
+  // Legend
+  html += '<div style="background:#f0f6ff;border:1px solid var(--border);border-radius:10px;padding:14px 20px;margin-bottom:16px;font-size:12px;color:var(--navy)">';
+  html += '<strong>Self-Assessment:</strong> 1 = Proficient-Competent &nbsp;|&nbsp; 2 = Limited Experience &nbsp;|&nbsp; 3 = Need Instruction<br>';
+  html += '<strong>Evaluation Score:</strong> 1 = Proficient &nbsp;|&nbsp; 2 = Needs Additional Training/Supervision &nbsp;|&nbsp; 3 = Need Instruction<br>';
+  html += '<strong>Method:</strong> 1=Observation / 2=Training / 3=Oral/Supervision / 4=Skills Test / 5=Competencies / 6=New Hire Orientation / 7=Pre-employment Interview</div>';
+
+  // Table - read only
+  html += '<div class="card" style="overflow:auto;margin-bottom:16px"><table style="width:100%;border-collapse:collapse;min-width:600px"><thead><tr>';
+  html += '<th style="background:var(--navy);color:#fff;padding:10px 12px;text-align:left;font-size:11px;width:40%">SKILL / COMPETENCY ITEM</th>';
+  html += '<th style="background:var(--navy);color:#fff;padding:10px 12px;text-align:center;font-size:11px;width:15%">SELF-ASSESSMENT</th>';
+  sessions.forEach(function(s, si) {
+    html += '<th style="background:var(--mid);color:#fff;padding:10px 12px;text-align:center;font-size:11px;">';
+    html += 'SESSION '+(si+1)+'<br><span style="font-weight:400;font-size:10px">'+esc(s.name)+'<br>'+(s.date?(s.date.includes('T')?new Date(s.date).toLocaleDateString():new Date(s.date+'T00:00:00').toLocaleDateString()):'')+'</span></th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  fc.items.forEach(function(item, i) {
+    var selfScore = selfScores[i] || '';
+    var rowBg = i%2===0?'#fff':'#f0f6ff';
+    var selfColor = selfScore==='1'?'var(--green)':selfScore==='2'?'var(--amber)':selfScore==='3'?'var(--red)':'var(--muted)';
+    html += '<tr style="background:'+rowBg+'">';
+    html += '<td style="padding:8px 12px;border:1px solid #e2e8f0;font-size:12px">'+esc(item)+'</td>';
+    html += '<td style="padding:8px;border:1px solid #e2e8f0;text-align:center"><span style="font-weight:700;color:'+selfColor+';font-size:16px">'+(selfScore||'-')+'</span></td>';
+    sessions.forEach(function(s) {
+      var sc = s.scores && s.scores[i] ? s.scores[i] : {};
+      var col = sc.score==='1'?'var(--green)':sc.score==='2'?'var(--amber)':sc.score==='3'?'var(--red)':'#ccc';
+      html += '<td style="padding:8px;border:1px solid #e2e8f0;text-align:center">';
+      if (sc.score) {
+        html += '<span style="font-weight:700;color:'+col+';font-size:16px">'+sc.score+'</span>';
+        if (sc.method) html += '<br><span style="font-size:10px;color:var(--muted)">M:'+sc.method+'</span>';
+      } else {
+        html += '<span style="color:#ccc">-</span>';
+      }
+      html += '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+
+  // Sessions summary
+  if (sessions.length > 0) {
+    html += '<div class="val-section"><div class="val-hdr"><h3>Training Sessions</h3><p>All completed training sessions for this employee.</p></div><div style="padding:20px 24px">';
+    sessions.forEach(function(s, si) {
+      html += '<div style="background:#f0fdf4;border:1px solid var(--green);border-radius:8px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px">';
+      html += '<span style="font-size:20px">&#x2705;</span>';
+      html += '<div><div style="font-weight:600;color:#065f46">Session '+(si+1)+': '+esc(s.name)+'</div>';
+      var sessDate = s.date?(s.date.includes('T')?new Date(s.date).toLocaleDateString():new Date(s.date+'T00:00:00').toLocaleDateString()):'';
+      var scored = Object.keys(s.scores||{}).filter(function(k){return s.scores[k].score;}).length;
+      html += '<div style="font-size:12px;color:var(--muted)">'+sessDate+' &middot; '+scored+' of '+fc.items.length+' items scored</div></div>';
+      if (s.sig_img) html += '<img src="'+s.sig_img+'" style="height:36px;max-width:120px;object-fit:contain;margin-left:auto;border-radius:4px" alt="sig">';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  html += '</div>';
+  document.getElementById('pageForm').innerHTML = html;
+}
+
+function backFromFloorCompAdmin() {
+  _floorAdminView = false;
+  showPage('admin');
+}
+
 async function openFloorComp() {
   var u = currentUser;
   var uid = u.id || u.email;
