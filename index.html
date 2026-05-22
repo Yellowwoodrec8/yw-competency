@@ -2195,8 +2195,88 @@ async function renderFloorCompFormAdmin(u, uid, fck, fp) {
     html += '</div></div>';
   }
 
+  // Admin controls panel
+  html += '<div class="val-section" style="border-color:var(--red)">';
+  html += '<div class="val-hdr" style="background:var(--red)"><h3>Admin Controls</h3><p style="color:rgba(255,255,255,.75)">Use these tools to fix errors or unlock the form for the employee.</p></div>';
+  html += '<div style="padding:20px 24px;display:flex;flex-wrap:wrap;gap:10px;">';
+
+  // Unlock complete button (if completed)
+  if (fp.completed) {
+    html += '<button onclick="adminResetFloorComplete(\''+uid+'\',\''+fck+'\',\''+esc(u.name)+'\')" style="padding:9px 18px;background:var(--amber);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">&#x1F513; Unlock — Reopen for More Training</button>';
+  }
+
+  // Remove last session button (if sessions exist)
+  if (sessions.length > 0) {
+    html += '<button onclick="adminRemoveLastSession(\''+uid+'\',\''+fck+'\','+sessions.length+',\''+esc(u.name)+'\')" style="padding:9px 18px;background:white;color:var(--red);border:1.5px solid var(--red);border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">&#x1F5D1; Remove Last Session</button>';
+  }
+
+  // Remove self-assessment signature (if signed)
+  if (fp.self_signed) {
+    html += '<button onclick="adminRemoveSelfSig(\''+uid+'\',\''+fck+'\',\''+esc(u.name)+'\')" style="padding:9px 18px;background:white;color:var(--red);border:1.5px solid var(--red);border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">&#x270D; Remove Employee Self-Signature</button>';
+  }
+
+  // Full reset button
+  html += '<button onclick="adminFullResetFloor(\''+uid+'\',\''+fck+'\',\''+esc(u.name)+'\')" style="padding:9px 18px;background:white;color:var(--red);border:1.5px solid var(--red);border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">&#x26A0; Full Reset — Clear Everything</button>';
+
+  html += '</div></div>';
+
   html += '</div>';
   document.getElementById('pageForm').innerHTML = html;
+}
+
+// -- ADMIN FLOOR COMP CONTROLS --------------------------------
+async function adminResetFloorComplete(uid, fck, name) {
+  if (!confirm('Unlock "' + name + '\'s" position competency? They will be able to add more training sessions.')) return;
+  await saveFloorCompProgress(uid, fck, { completed: false, completed_at: null });
+  toast('Unlocked — ' + name + ' can now add more sessions.', true);
+  setTimeout(function(){ viewStaffFloorComp(uid, uid); }, 600);
+}
+
+async function adminRemoveLastSession(uid, fck, sessionCount, name) {
+  if (!confirm('Remove the last training session for ' + name + '? This cannot be undone.')) return;
+  var fp = await getFloorCompProgress(uid, fck);
+  var sessions = fp.sessions ? JSON.parse(fp.sessions) : [];
+  if (sessions.length === 0) { toast('No sessions to remove.'); return; }
+  sessions.pop();
+  await saveFloorCompProgress(uid, fck, { sessions: JSON.stringify(sessions) });
+  toast('Last session removed.', true);
+  var u = USE_SUPABASE ? (await sbGetOne('profiles','id=eq.'+uid)) : Object.values(LOCAL_DB.users).find(function(u){ return u.id===uid||u.email===uid; });
+  var fp2 = await getFloorCompProgress(uid, fck);
+  renderFloorCompFormAdmin(Object.assign({},u,{id:uid}), uid, fck, fp2);
+}
+
+async function adminRemoveSelfSig(uid, fck, name) {
+  if (!confirm('Remove ' + name + '\'s self-assessment signature? This will unlock their self-scores for editing and remove all trainer sessions too.')) return;
+  await saveFloorCompProgress(uid, fck, {
+    self_signed: false,
+    self_signed_at: null,
+    self_sig_name: null,
+    self_sig_img: null,
+    sessions: '[]',
+    completed: false,
+    completed_at: null
+  });
+  toast('Self-signature removed. ' + name + ' can now edit their self-assessment.', true);
+  var u = USE_SUPABASE ? (await sbGetOne('profiles','id=eq.'+uid)) : Object.values(LOCAL_DB.users).find(function(u){ return u.id===uid||u.email===uid; });
+  var fp2 = await getFloorCompProgress(uid, fck);
+  renderFloorCompFormAdmin(Object.assign({},u,{id:uid}), uid, fck, fp2);
+}
+
+async function adminFullResetFloor(uid, fck, name) {
+  if (!confirm('FULL RESET for ' + name + '\'s position competency? This will delete ALL self-scores, ALL sessions, and ALL signatures. This cannot be undone.')) return;
+  await saveFloorCompProgress(uid, fck, {
+    self_scores: '{}',
+    self_signed: false,
+    self_signed_at: null,
+    self_sig_name: null,
+    self_sig_img: null,
+    sessions: '[]',
+    completed: false,
+    completed_at: null,
+    date_of_hire: null
+  });
+  toast('Full reset complete for ' + name + '.', true);
+  setTimeout(function(){ backFromFloorCompAdmin(); }, 800);
 }
 
 function backFromFloorCompAdmin() {
