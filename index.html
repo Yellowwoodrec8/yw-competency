@@ -2200,10 +2200,8 @@ async function renderFloorCompFormAdmin(u, uid, fck, fp) {
   html += '<div class="val-hdr" style="background:var(--red)"><h3>Admin Controls</h3><p style="color:rgba(255,255,255,.75)">Use these tools to fix errors or unlock the form for the employee.</p></div>';
   html += '<div style="padding:20px 24px;display:flex;flex-wrap:wrap;gap:10px;">';
 
-  // Unlock complete button (if completed)
-  if (fp.completed) {
-    html += '<button onclick="adminResetFloorComplete(\''+uid+'\',\''+fck+'\',\''+esc(u.name)+'\')" style="padding:9px 18px;background:var(--amber);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">&#x1F513; Unlock — Reopen for More Training</button>';
-  }
+  // Unlock button - always show in admin controls
+  html += '<button onclick="adminResetFloorComplete(\''+uid+'\',\''+fck+'\',\''+esc(u.name)+'\')" style="padding:9px 18px;background:var(--amber);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">&#x1F513; Unlock — Reopen for More Training</button>';
 
   // Remove last session button (if sessions exist)
   if (sessions.length > 0) {
@@ -2420,8 +2418,11 @@ async function renderFloorCompForm() {
     if (!fp.completed) {
       html += '<button onclick="openFloorSupervisorModal()" style="padding:10px 22px;background:var(--mid);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">+ Add Supervisor Session</button>';
       html += ' <button onclick="generateSignOffCode()" style="padding:10px 22px;background:white;color:var(--navy);border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;margin-left:8px">Generate Trainer Code</button>';
-      if (allCovered || sessions.length > 0) {
+      if (allCovered) {
         html += ' <button onclick="markFloorCompComplete()" style="padding:10px 22px;background:var(--green);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;margin-left:8px">Mark as Complete</button>';
+      } else if (sessions.length > 0) {
+        var coveredCount = fc.items.filter(function(_,i){ return sessions.some(function(s){ return s.scores && s.scores[i] && s.scores[i].score; }); }).length;
+        html += '<p style="font-size:12px;color:var(--muted);margin-top:10px">&#x26A0;&#xFE0F; '+coveredCount+' of '+fc.items.length+' items have been scored. All items must have a trainer score before marking complete.</p>';
       }
     } else {
       html += '<div style="color:var(--green);font-weight:600;font-size:14px"> All training sessions complete!</div>';
@@ -2530,6 +2531,13 @@ async function submitFloorSupervisorSession() {
 
 async function markFloorCompComplete() {
   var uid = currentUser.id || currentUser.email;
+  var fp = await getFloorCompProgress(uid, currentFloorCompKey);
+  var sessions = fp.sessions ? JSON.parse(fp.sessions) : [];
+  if (sessions.length === 0) {
+    toast('At least one training session must be added before marking complete.');
+    return;
+  }
+  if (!confirm('Mark this position competency as complete? Make sure all training sessions have been added.')) return;
   await saveFloorCompProgress(uid, currentFloorCompKey, {
     completed: true,
     completed_at: new Date().toISOString()
