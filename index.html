@@ -990,6 +990,31 @@ const FLOOR_COMPS = {
       "Nursing Care of Detox Patients",
       "Understanding of the Types, Uses and Side Effects of Detox Meds"
     ]
+  },
+  tech: {
+    label: "Position Based Competency - Tech/BHT",
+    position: "Behavioral Health Technician (BHT)",
+    evalMethods: "1=Observation / 2=Written Test / 3=Oral Evaluation/Supervision / 4=Skills Test",
+    evalScores: "1=Proficient / 2=In Need of Additional Training/Supervising",
+    selfScores: "1=Proficient-Competent / 2=Limited Experience / 3=Need Instruction",
+    items: [
+      "Conducting a Group or Activity",
+      "CA Law Regarding Reporting of Abuse and Neglect",
+      "Client Rights",
+      "Confidentiality/HIPAA",
+      "Principles of Quality Assessment & Improvement",
+      "Standards of Professional Conduct",
+      "Basic General Orientation to Age/Disability/Cultural Diversity/Sensitivity Competency",
+      "Disease Concept of Addiction",
+      "Twelve Step Philosophy and Approach",
+      "Knowledge of Detox Symptoms to Report to Nurse and/or Doctor",
+      "Ability to Obtain, Interpret, and Document Information About Chemical Dependence",
+      "Understanding of the Biological & Sociocultural Factors Influencing Chemical Dependence",
+      "General Understanding of the Range of Treatment Needed by CD Patients, Including Continuing Care",
+      "Client Safety",
+      "Supporting the Therapeutic Milieu",
+      "Infection Control"
+    ]
   }
 };
 
@@ -998,7 +1023,7 @@ const POS_FLOOR_COMP = {
   nurse:          "nurse",
   counselor:      null,
   therapist:      null,
-  tech:           null,
+  tech:           "tech",
   doctor:         null,
   administrative: null,
   dietary:        null,
@@ -2162,9 +2187,9 @@ async function renderFloorCompFormAdmin(u, uid, fck, fp) {
 
   // Legend
   html += '<div style="background:#f0f6ff;border:1px solid var(--border);border-radius:10px;padding:14px 20px;margin-bottom:16px;font-size:12px;color:var(--navy)">';
-  html += '<strong>Self-Assessment:</strong> 1 = Proficient-Competent &nbsp;|&nbsp; 2 = Limited Experience &nbsp;|&nbsp; 3 = Need Instruction<br>';
-  html += '<strong>Evaluation Score:</strong> 1 = Proficient &nbsp;|&nbsp; 2 = Needs Additional Training/Supervision &nbsp;|&nbsp; 3 = Need Instruction<br>';
-  html += '<strong>Method:</strong> 1=Observation / 2=Training / 3=Oral/Supervision / 4=Skills Test / 5=Competencies / 6=New Hire Orientation / 7=Pre-employment Interview</div>';
+  html += '<strong>Self-Assessment:</strong> '+fc.selfScores+'<br>';
+  html += '<strong>Evaluation Score:</strong> '+fc.evalScores+'<br>';
+  html += '<strong>Method:</strong> '+fc.evalMethods+'</div>';
 
   // Table - read only
   html += '<div class="card" style="overflow:auto;margin-bottom:16px"><table style="width:100%;border-collapse:collapse;min-width:600px"><thead><tr>';
@@ -2343,9 +2368,9 @@ async function renderFloorCompForm() {
 
   // Legend
   html += '<div style="background:#f0f6ff;border:1px solid var(--border);border-radius:10px;padding:14px 20px;margin-bottom:16px;font-size:12px;color:var(--navy)">';
-  html += '<strong>Self-Assessment:</strong> 1 = Proficient-Competent &nbsp;|&nbsp; 2 = Limited Experience &nbsp;|&nbsp; 3 = Need Instruction<br>';
-  html += '<strong>Evaluation Score:</strong> 1 = Proficient &nbsp;|&nbsp; 2 = Needs Additional Training/Supervision &nbsp;|&nbsp; 3 = Need Instruction<br>';
-  html += '<strong>Method:</strong> 1=Observation / 2=Training / 3=Oral/Supervision / 4=Skills Test / 5=Competencies / 6=New Hire Orientation / 7=Pre-employment Interview</div>';
+  html += '<strong>Self-Assessment:</strong> '+fc.selfScores+'<br>';
+  html += '<strong>Evaluation Score:</strong> '+fc.evalScores+'<br>';
+  html += '<strong>Method:</strong> '+fc.evalMethods+'</div>';
 
   // Main table
   html += '<div class="card" style="overflow:auto;margin-bottom:16px"><table style="width:100%;border-collapse:collapse;min-width:700px"><thead><tr>';
