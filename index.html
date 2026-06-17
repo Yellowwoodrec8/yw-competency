@@ -2046,12 +2046,14 @@ async function getFloorCompProgress(userId, compKey) {
 async function saveFloorCompProgress(userId, compKey, data) {
   if (USE_SUPABASE) {
     var payload = Object.assign({ user_id: userId, comp_key: compKey }, data);
-    await sbUpsert('floor_comp_progress', payload, 'user_id,comp_key');
+    var ok = await sbUpsert('floor_comp_progress', payload, 'user_id,comp_key');
+    return ok;
   } else {
     if (!LOCAL_DB.floor_progress) LOCAL_DB.floor_progress = {};
     if (!LOCAL_DB.floor_progress[userId]) LOCAL_DB.floor_progress[userId] = {};
     LOCAL_DB.floor_progress[userId][compKey] = Object.assign(LOCAL_DB.floor_progress[userId][compKey]||{}, data);
     localPersist();
+    return true;
   }
 }
 
@@ -2140,6 +2142,23 @@ async function renderFloorCompFormAdmin(u, uid, fck, fp) {
   html += '<div class="field"><label>Position</label><input type="text" value="'+esc(fc.position)+'" readonly></div>';
   html += '<div class="field"><label>Date of Hire</label><input type="date" value="'+(fp.date_of_hire||'')+'" disabled></div>';
   html += '</div></div>';
+
+  // Self-assessment signature
+  if (selfSigned) {
+    html += '<div class="sec-card"><div class="sec-title">Employee Self-Assessment Signature</div><div style="padding:20px 24px;display:flex;align-items:center;gap:16px;">';
+    html += '<div style="border:1px solid var(--border);border-radius:8px;background:#fafafa;height:60px;width:220px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">';
+    if (fp.self_sig_img && fp.self_sig_img.length > 100) {
+      html += '<img src="'+fp.self_sig_img+'" style="max-height:56px;max-width:100%;object-fit:contain;" alt="Self-assessment signature">';
+    } else {
+      html += '<span style="color:#c0392b;font-size:12px;font-style:italic;">&#x26A0;&#xFE0F; No signature image on file</span>';
+    }
+    html += '</div><div><div style="font-weight:600;color:var(--navy);font-size:13px">'+esc(fp.self_sig_name||u.name)+'</div>';
+    html += '<div style="font-size:12px;color:var(--muted)">Signed: '+(fp.self_signed_at?new Date(fp.self_signed_at).toLocaleDateString():'N/A')+'</div>';
+    if (!fp.self_sig_img || fp.self_sig_img.length <= 100) {
+      html += '<div style="font-size:11px;color:#c0392b;margin-top:4px">Use "Remove Employee Self-Signature" below, then ask the employee to re-sign to capture a valid signature.</div>';
+    }
+    html += '</div></div></div>';
+  }
 
   // Legend
   html += '<div style="background:#f0f6ff;border:1px solid var(--border);border-radius:10px;padding:14px 20px;margin-bottom:16px;font-size:12px;color:var(--navy)">';
@@ -2448,7 +2467,10 @@ async function saveFloorInfoFields() {
   var doh = document.getElementById('fc_doh');
   var data = {};
   if (doh && doh.value) data.date_of_hire = doh.value;
-  if (Object.keys(data).length) await saveFloorCompProgress(uid, currentFloorCompKey, data);
+  if (Object.keys(data).length) {
+    var ok = await saveFloorCompProgress(uid, currentFloorCompKey, data);
+    if (ok === false) toast('Could not save date of hire. Please contact your administrator.');
+  }
 }
 
 // Employee self-sign modal
@@ -2476,14 +2498,16 @@ async function submitFloorEmpSig() {
   if (!_hasSigned.emp) { toast('Please draw your signature.'); return; }
   var canvas = document.getElementById('empCanvas');
   var sigImg = canvas ? canvas.toDataURL('image/png') : '';
+  if (!sigImg || sigImg.length < 200) { toast('Signature did not capture properly. Please clear and try drawing again.'); return; }
   var uid = currentUser.id || currentUser.email;
-  await saveFloorCompProgress(uid, currentFloorCompKey, {
+  var ok = await saveFloorCompProgress(uid, currentFloorCompKey, {
     self_scores: JSON.stringify(floorSelfScores),
     self_signed: true,
     self_signed_at: new Date().toISOString(),
     self_sig_name: name,
     self_sig_img: sigImg
   });
+  if (ok === false) { toast('There was a problem saving your signature. Please try again.'); return; }
   document.getElementById('empModal').style.display = 'none';
   clearCanvas('empCanvas');
   toast('Self-assessment signed!', true);
