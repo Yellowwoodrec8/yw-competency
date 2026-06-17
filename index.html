@@ -2122,6 +2122,7 @@ async function renderFloorCompFormAdmin(u, uid, fck, fp) {
   var selfSigned = !!fp.self_signed;
 
   var html = '<button class="btn-back" onclick="backFromFloorCompAdmin()">&#8592; Back to Dashboard</button>';
+  html += '<button onclick="exportFloorCompPDF(\''+uid+'\',\''+esc(u.email)+'\')" style="float:right;margin-top:-44px;padding:9px 18px;background:white;color:var(--navy);border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">&#x1F4C4; Export PDF</button>';
   html += '<div class="form-wrap">';
 
   // Status banner
@@ -2311,6 +2312,7 @@ async function renderFloorCompForm() {
   var selfSigned = !!fp.self_signed;
 
   var html = '<button class="btn-back" onclick="backFromFloorComp()">&#8592; Back</button>';
+  html += '<button onclick="exportFloorCompPDF()" style="float:right;margin-top:-44px;padding:9px 18px;background:white;color:var(--navy);border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">&#x1F4C4; Export PDF</button>';
   html += '<div class="form-wrap">';
 
   // Header info
@@ -2675,6 +2677,86 @@ async function exportFromAdmin(uid, email, ck) {
   currentFormUser    = Object.assign({}, u, { id: uid, email: email });
   currentFormCompKey = ck;
   exportPDF();
+}
+
+async function exportFloorCompPDF(uidParam, emailParam) {
+  var u, uid, fck;
+  if (uidParam) {
+    // Called from admin view
+    u = USE_SUPABASE ? (await sbGetOne('profiles', 'id=eq.'+uidParam)) : LOCAL_DB.users[emailParam];
+    uid = uidParam;
+    fck = POS_FLOOR_COMP[u.position];
+  } else {
+    // Called from employee's own view
+    u = currentUser;
+    uid = u.id || u.email;
+    fck = currentFloorCompKey;
+  }
+  if (!fck || !FLOOR_COMPS[fck]) { toast('No floor competency found.'); return; }
+  var fc = FLOOR_COMPS[fck];
+  var fp = await getFloorCompProgress(uid, fck);
+  var selfScores = fp.self_scores ? JSON.parse(fp.self_scores) : {};
+  var sessions = fp.sessions ? JSON.parse(fp.sessions) : [];
+
+  var html = '';
+  html += '<div class="print-header"><h1>Yellow Wood Recovery &mdash; Position Based Competency</h1><p>'+esc(fc.label)+'</p></div>';
+  html += '<div class="print-info-grid">';
+  html += '<div class="print-info-field"><div class="lbl">Employee Name</div><div class="val">'+esc(u.name)+'</div></div>';
+  html += '<div class="print-info-field"><div class="lbl">Position</div><div class="val">'+esc(fc.position)+'</div></div>';
+  html += '<div class="print-info-field"><div class="lbl">Date of Hire</div><div class="val">'+(fp.date_of_hire||'&nbsp;')+'</div></div>';
+  html += '<div class="print-info-field"><div class="lbl">Status</div><div class="val">'+(fp.completed?'Complete':'In Progress')+'</div></div>';
+  html += '</div>';
+
+  html += '<table class="print-table"><thead><tr>';
+  html += '<th style="width:40%">SKILL / COMPETENCY ITEM</th><th class="center" style="width:15%">SELF-ASSESSMENT</th>';
+  sessions.forEach(function(s, si) {
+    html += '<th class="center">SESSION '+(si+1)+'<br><span style="font-size:7pt;font-weight:400">'+esc(s.name)+'</span></th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  fc.items.forEach(function(item, i) {
+    var selfScore = selfScores[i] || '';
+    html += '<tr class="'+(i%2===1?'row-alt':'')+'">';
+    html += '<td><span class="row-num">'+(i+1)+'.</span>'+esc(item)+'</td>';
+    html += '<td style="text-align:center;font-weight:700">'+(selfScore||'&ndash;')+'</td>';
+    sessions.forEach(function(s) {
+      var sc = s.scores && s.scores[i] ? s.scores[i] : {};
+      html += '<td style="text-align:center;font-weight:700">'+(sc.score?sc.score+(sc.method?' <span style="font-size:7pt;font-weight:400;color:#666">(M'+sc.method+')</span>':''):'&ndash;')+'</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  html += '<div class="print-legend"><strong>Self-Assessment:</strong> 1=Proficient &nbsp;2=Limited Experience &nbsp;3=Need Instruction &nbsp;&nbsp; <strong>Evaluation:</strong> 1=Proficient &nbsp;2=Needs Add\'l Training &nbsp;3=Need Instruction &nbsp;&nbsp; <strong>Method:</strong> 1=Observation 2=Training 3=Oral/Supervision 4=Skills Test</div>';
+
+  // Self signature
+  html += '<div class="print-sig-grid">';
+  html += '<div class="print-sig-box"><div class="lbl">Employee Self-Assessment Signature</div>';
+  html += '<div style="border:1pt solid #ccc;border-radius:4pt;background:#fafafa;height:60pt;display:flex;align-items:center;justify-content:center;margin:4pt 0;overflow:hidden;">';
+  if (fp.self_sig_img && fp.self_sig_img.length>100) html += '<img src="'+fp.self_sig_img+'" style="max-height:56pt;max-width:100%;object-fit:contain;" alt="Self-assessment signature">';
+  else html += '<span style="color:#aaa;font-size:9pt;font-style:italic;">No signature captured</span>';
+  html += '</div><div style="font-size:9pt;color:#333;font-weight:600;">'+esc(fp.self_sig_name||u.name)+'</div>';
+  html += '<div style="font-size:8pt;color:#666;">Signed: '+(fp.self_signed_at?new Date(fp.self_signed_at).toLocaleDateString():'N/A')+'</div></div>';
+  html += '</div>';
+
+  // Session signatures (one row per session, up to 2 per print row)
+  if (sessions.length > 0) {
+    html += '<div style="margin-top:10pt"><div class="lbl" style="font-size:9pt;font-weight:700;color:#333;margin-bottom:6pt">Training Session Signatures</div>';
+    html += '<div class="print-sig-grid">';
+    sessions.forEach(function(s, si) {
+      html += '<div class="print-sig-box"><div class="lbl">Session '+(si+1)+' &mdash; '+esc(s.name)+'</div>';
+      html += '<div style="border:1pt solid #ccc;border-radius:4pt;background:#fafafa;height:50pt;display:flex;align-items:center;justify-content:center;margin:4pt 0;overflow:hidden;">';
+      if (s.sig_img && s.sig_img.length>100) html += '<img src="'+s.sig_img+'" style="max-height:46pt;max-width:100%;object-fit:contain;" alt="Session signature">';
+      else html += '<span style="color:#aaa;font-size:9pt;font-style:italic;">No signature</span>';
+      html += '</div><div style="font-size:8pt;color:#666;">Date: '+(s.date?(s.date.includes('T')?new Date(s.date).toLocaleDateString():new Date(s.date+'T00:00:00').toLocaleDateString()):'N/A')+'</div></div>';
+    });
+    html += '</div></div>';
+  }
+
+  var pa=document.getElementById('printArea');
+  pa.innerHTML=html; pa.style.display='block';
+  document.getElementById('appScreen').style.display='none';
+  window.print();
+  setTimeout(function(){ pa.style.display='none'; document.getElementById('appScreen').style.display='block'; }, 500);
 }
 
 // -- UTILS -------------------------------------------------
