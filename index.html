@@ -1316,7 +1316,8 @@ async function renderAdmin() {
       html += '<td style="font-size:12px">'+esc(item.pr.emp_sig_name||item.u.name)+'<br><span style="color:var(--muted)">'+(item.pr.emp_signed_at?new Date(item.pr.emp_signed_at).toLocaleDateString():'')+'</span></td>';
       html += '<td style="font-size:12px">'+esc(item.pr.val_sig_name||'')+'</td>';
       html += '<td style="font-size:12px">'+(item.pr.val_signed_at?new Date(item.pr.val_signed_at).toLocaleDateString():'')+'</td>';
-      html += '<td><button onclick="exportFromAdmin(\''+item.uid+'\',\''+item.u.email+'\',\''+item.ck+'\')" style="padding:7px 14px;background:var(--navy);color:#fff;border:none;border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">&#x2B07; Export PDF</button></td>';
+      html += '<td style="display:flex;gap:6px;flex-wrap:wrap"><button onclick="exportFromAdmin(\''+item.uid+'\',\''+item.u.email+'\',\''+item.ck+'\')" style="padding:7px 14px;background:var(--navy);color:#fff;border:none;border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">&#x2B07; Export PDF</button>';
+      html += '<button onclick="pushNewCompCycle(&quot;'+item.uid+'&quot;,&quot;'+item.u.email+'&quot;,&quot;'+item.ck+'&quot;,&quot;'+esc(item.u.name)+'&quot;)" style="padding:7px 14px;background:white;color:var(--navy);border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">&#x1F504; Push New Cycle</button></td>';
       html += '</tr>';
     });
     html += '</tbody></table>';
@@ -1353,7 +1354,8 @@ async function renderAdmin() {
       html += '<td style="font-size:13px;font-weight:700;color:'+(passed?'var(--green)':'var(--red)')+'">'+( item.tp.best_score||0)+'%</td>';
       html += '<td style="font-size:12px;color:var(--muted)">'+( item.tp.attempts||0)+'</td>';
       html += '<td style="font-size:12px;color:var(--muted)">'+(item.tp.last_taken?new Date(item.tp.last_taken).toLocaleDateString():'')+'</td>';
-      html += '<td><button onclick="exportTestPDF(&quot;'+item.uid+'&quot;,&quot;'+item.u.email+'&quot;,&quot;'+item.tk+'&quot;)" style="padding:7px 14px;background:var(--navy);color:#fff;border:none;border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">&#x2B07; Export PDF</button></td>';
+      html += '<td style="display:flex;gap:6px;flex-wrap:wrap"><button onclick="exportTestPDF(&quot;'+item.uid+'&quot;,&quot;'+item.u.email+'&quot;,&quot;'+item.tk+'&quot;)" style="padding:7px 14px;background:var(--navy);color:#fff;border:none;border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">&#x2B07; Export PDF</button>';
+      html += '<button onclick="pushNewTestCycle(&quot;'+item.uid+'&quot;,&quot;'+item.u.email+'&quot;,&quot;'+item.tk+'&quot;,&quot;'+esc(item.u.name)+'&quot;)" style="padding:7px 14px;background:white;color:var(--navy);border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">&#x1F504; Push New Cycle</button></td>';
       html += '</tr>';
     });
     html += '</tbody></table>';
@@ -2719,6 +2721,66 @@ async function exportPDF() {
   document.getElementById('appScreen').style.display='none';
   window.print();
   setTimeout(function(){ pa.style.display='none'; document.getElementById('appScreen').style.display='block'; }, 500);
+}
+
+async function pushNewCompCycle(uid, email, ck, name) {
+  if (!confirm('Push a new cycle for ' + name + '\'s competency? Make sure you have already exported a PDF if you need a record of the current signed copy. Their form will reset to blank for them to complete again.')) return;
+  var pr = await getProgress(uid, ck);
+  // Archive current data quietly (safety net even if PDF wasn't exported)
+  if (USE_SUPABASE) {
+    await sbInsert('competency_history', { user_id: uid, comp_key: ck, snapshot: JSON.stringify(pr) });
+  }
+  // Reset to blank for a new cycle
+  var resetData = {
+    checks: '{}',
+    validator_name: null,
+    emp_signed: false,
+    emp_signed_at: null,
+    emp_sig_name: null,
+    emp_sig_img: null,
+    submitted: false,
+    submitted_at: null,
+    val_signed: false,
+    val_signed_at: null,
+    val_sig_name: null,
+    val_sig_img: null
+  };
+  if (USE_SUPABASE) {
+    var payload = Object.assign({ user_id: uid, comp_key: ck }, resetData);
+    await sbUpsert('progress', payload, 'user_id,comp_key');
+  } else {
+    if (!LOCAL_DB.progress[uid]) LOCAL_DB.progress[uid] = {};
+    LOCAL_DB.progress[uid][ck] = resetData;
+    localPersist();
+  }
+  toast('New cycle started for ' + name + '.', true);
+  setTimeout(renderAdmin, 600);
+}
+
+async function pushNewTestCycle(uid, email, tk, name) {
+  if (!confirm('Push a new cycle for ' + name + '\'s test? Make sure you have already exported a PDF if you need a record of their current score. Their test will reset for them to retake.')) return;
+  var tp = await getTestProgress(uid, tk);
+  if (USE_SUPABASE) {
+    await sbInsert('test_history', { user_id: uid, test_key: tk, snapshot: JSON.stringify(tp) });
+  }
+  var resetData = {
+    passed: false,
+    best_score: 0,
+    last_score: 0,
+    attempts: 0,
+    last_taken: null,
+    answers: null
+  };
+  if (USE_SUPABASE) {
+    var payload = Object.assign({ user_id: uid, test_key: tk }, resetData);
+    await sbUpsert('test_progress', payload, 'user_id,test_key');
+  } else {
+    if (!LOCAL_DB.test_progress[uid]) LOCAL_DB.test_progress[uid] = {};
+    LOCAL_DB.test_progress[uid][tk] = resetData;
+    localPersist();
+  }
+  toast('New test cycle started for ' + name + '.', true);
+  setTimeout(renderAdmin, 600);
 }
 
 async function exportFromAdmin(uid, email, ck) {
