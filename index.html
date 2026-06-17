@@ -2121,8 +2121,8 @@ async function renderFloorCompFormAdmin(u, uid, fck, fp) {
   var sessions   = fp.sessions ? JSON.parse(fp.sessions) : [];
   var selfSigned = !!fp.self_signed;
 
-  var html = '<button class="btn-back" onclick="backFromFloorCompAdmin()">&#8592; Back to Dashboard</button>';
-  html += '<button onclick="exportFloorCompPDF(\''+uid+'\',\''+esc(u.email)+'\')" style="float:right;margin-top:-44px;padding:9px 18px;background:white;color:var(--navy);border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">&#x1F4C4; Export PDF</button>';
+  var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;"><button class="btn-back" style="margin-bottom:0" onclick="backFromFloorCompAdmin()">&#8592; Back to Dashboard</button>';
+  html += '<button onclick="exportFloorCompPDF(\''+uid+'\',\''+esc(u.email)+'\')" style="padding:9px 18px;background:white;color:var(--navy);border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">&#x1F4C4; Export PDF</button></div>';
   html += '<div class="form-wrap">';
 
   // Status banner
@@ -2311,8 +2311,8 @@ async function renderFloorCompForm() {
   var sessions   = fp.sessions ? JSON.parse(fp.sessions) : [];
   var selfSigned = !!fp.self_signed;
 
-  var html = '<button class="btn-back" onclick="backFromFloorComp()">&#8592; Back</button>';
-  html += '<button onclick="exportFloorCompPDF()" style="float:right;margin-top:-44px;padding:9px 18px;background:white;color:var(--navy);border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">&#x1F4C4; Export PDF</button>';
+  var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;"><button class="btn-back" style="margin-bottom:0" onclick="backFromFloorComp()">&#8592; Back</button>';
+  html += '<button onclick="exportFloorCompPDF()" style="padding:9px 18px;background:white;color:var(--navy);border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">&#x1F4C4; Export PDF</button></div>';
   html += '<div class="form-wrap">';
 
   // Header info
