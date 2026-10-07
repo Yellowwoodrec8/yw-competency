@@ -1547,13 +1547,17 @@ async function renderForm() {
     html += '<div class="success-banner"><span style="font-size:24px">&#x2705;</span><div>';
     html += '<div style="font-weight:700;color:#065f46">Fully Complete</div>';
     html += '<div style="font-size:12px;color:#059669">Employee: '+esc(pr.emp_sig_name||u.name)+' &nbsp;|&nbsp; Validator: '+esc(pr.val_sig_name||'Validator')+' on '+(pr.val_signed_at?new Date(pr.val_signed_at).toLocaleDateString():'N/A')+'</div>';
-    html += '</div><button onclick="exportPDF()" style="margin-left:auto;padding:8px 16px;background:#065f46;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">&#x2B07; Export PDF</button></div>';
+    html += '</div><button onclick="exportPDF()" style="margin-left:auto;padding:8px 16px;background:#065f46;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">&#x2B07; Export PDF</button>';
+    if (currentUser && currentUser.role==='admin') html += '<button onclick="adminUnlockComp(\''+uid+'\',\''+(u.email||'')+'\',\''+ck+'\',\''+esc(u.name)+'\',true)" style="margin-left:8px;padding:8px 16px;background:var(--amber);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">&#x1F513; Unlock</button>';
+    html += '</div>';
   } else if (empSigned) {
     html += '<div style="background:#fef3c7;border:1.5px solid var(--amber);border-radius:10px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px">';
     html += '<span style="font-size:22px">&#x23F3;</span><div>';
     html += '<div style="font-weight:700;color:#92400e">Awaiting Validator Sign-Off</div>';
     html += '<div style="font-size:12px;color:#b45309">Employee signed on '+new Date(pr.emp_signed_at).toLocaleDateString()+'. A validator must now sign to complete.</div>';
-    html += '</div></div>';
+    html += '</div>';
+    if (currentUser && currentUser.role==='admin') html += '<button onclick="adminUnlockComp(\''+uid+'\',\''+(u.email||'')+'\',\''+ck+'\',\''+esc(u.name)+'\',true)" style="margin-left:auto;padding:8px 16px;background:var(--amber);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">&#x1F513; Unlock</button>';
+    html += '</div>';
   }
 
   // Info fields
@@ -2759,7 +2763,7 @@ async function pushNewCompCycle(uid, email, ck, name) {
   setTimeout(renderAdmin, 600);
 }
 
-async function adminUnlockComp(uid, email, ck, name) {
+async function adminUnlockComp(uid, email, ck, name, fromForm) {
   if (!confirm('Unlock "' + name + '\'s" competency for editing? Their signature(s) will be cleared so they can fix the form and re-sign. Their checked items will NOT be lost.')) return;
   var unlockData = {
     emp_signed: false,
@@ -2782,7 +2786,7 @@ async function adminUnlockComp(uid, email, ck, name) {
     localPersist();
   }
   toast('Unlocked — ' + name + ' can now edit and re-sign.', true);
-  setTimeout(renderAdmin, 600);
+  if (fromForm) { setTimeout(renderForm, 400); } else { setTimeout(renderAdmin, 600); }
 }
 
 async function pushNewTestCycle(uid, email, tk, name) {
