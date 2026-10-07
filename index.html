@@ -1288,7 +1288,8 @@ async function renderAdmin() {
       var uid = USE_SUPABASE ? item.u.id : item.u.email;
       html += '<div class="pc"><div class="pc-name">'+esc(item.u.name)+'</div>';
       html += '<div class="pc-sub">'+(COMPETENCIES[item.ck]?COMPETENCIES[item.ck].label:item.ck)+'</div>';
-      html += '<button class="pc-btn" onclick="adminSignOff(\''+uid+'\',\''+item.u.email+'\',\''+item.ck+'\')">&#x270D; Sign Off</button></div>';
+      html += '<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="pc-btn" onclick="adminSignOff(\''+uid+'\',\''+item.u.email+'\',\''+item.ck+'\')">&#x270D; Sign Off</button>';
+      html += '<button onclick="adminUnlockComp(&quot;'+uid+'&quot;,&quot;'+item.u.email+'&quot;,&quot;'+item.ck+'&quot;,&quot;'+esc(item.u.name)+'&quot;)" style="padding:9px 16px;background:white;color:var(--amber);border:1.5px solid var(--amber);border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">&#x1F513; Unlock</button></div></div>';
     });
     html += '</div>';
   }
@@ -1317,7 +1318,8 @@ async function renderAdmin() {
       html += '<td style="font-size:12px">'+esc(item.pr.val_sig_name||'')+'</td>';
       html += '<td style="font-size:12px">'+(item.pr.val_signed_at?new Date(item.pr.val_signed_at).toLocaleDateString():'')+'</td>';
       html += '<td style="display:flex;gap:6px;flex-wrap:wrap"><button onclick="exportFromAdmin(\''+item.uid+'\',\''+item.u.email+'\',\''+item.ck+'\')" style="padding:7px 14px;background:var(--navy);color:#fff;border:none;border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">&#x2B07; Export PDF</button>';
-      html += '<button onclick="pushNewCompCycle(&quot;'+item.uid+'&quot;,&quot;'+item.u.email+'&quot;,&quot;'+item.ck+'&quot;,&quot;'+esc(item.u.name)+'&quot;)" style="padding:7px 14px;background:white;color:var(--navy);border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">&#x1F504; Push New Cycle</button></td>';
+      html += '<button onclick="pushNewCompCycle(&quot;'+item.uid+'&quot;,&quot;'+item.u.email+'&quot;,&quot;'+item.ck+'&quot;,&quot;'+esc(item.u.name)+'&quot;)" style="padding:7px 14px;background:white;color:var(--navy);border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">&#x1F504; Push New Cycle</button>';
+      html += '<button onclick="adminUnlockComp(&quot;'+item.uid+'&quot;,&quot;'+item.u.email+'&quot;,&quot;'+item.ck+'&quot;,&quot;'+esc(item.u.name)+'&quot;)" style="padding:7px 14px;background:white;color:var(--amber);border:1.5px solid var(--amber);border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">&#x1F513; Unlock</button></td>';
       html += '</tr>';
     });
     html += '</tbody></table>';
@@ -2754,6 +2756,32 @@ async function pushNewCompCycle(uid, email, ck, name) {
     localPersist();
   }
   toast('New cycle started for ' + name + '.', true);
+  setTimeout(renderAdmin, 600);
+}
+
+async function adminUnlockComp(uid, email, ck, name) {
+  if (!confirm('Unlock "' + name + '\'s" competency for editing? Their signature(s) will be cleared so they can fix the form and re-sign. Their checked items will NOT be lost.')) return;
+  var unlockData = {
+    emp_signed: false,
+    emp_signed_at: null,
+    emp_sig_name: null,
+    emp_sig_img: null,
+    submitted: false,
+    submitted_at: null,
+    val_signed: false,
+    val_signed_at: null,
+    val_sig_name: null,
+    val_sig_img: null
+  };
+  if (USE_SUPABASE) {
+    var payload = Object.assign({ user_id: uid, comp_key: ck }, unlockData);
+    await sbUpsert('progress', payload, 'user_id,comp_key');
+  } else {
+    if (!LOCAL_DB.progress[uid]) LOCAL_DB.progress[uid] = {};
+    LOCAL_DB.progress[uid][ck] = Object.assign(LOCAL_DB.progress[uid][ck]||{}, unlockData);
+    localPersist();
+  }
+  toast('Unlocked — ' + name + ' can now edit and re-sign.', true);
   setTimeout(renderAdmin, 600);
 }
 
