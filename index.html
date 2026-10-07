@@ -2155,6 +2155,8 @@ async function renderFloorCompFormAdmin(u, uid, fck, fp) {
   var selfScores = fp.self_scores ? JSON.parse(fp.self_scores) : {};
   var sessions   = fp.sessions ? JSON.parse(fp.sessions) : [];
   var selfSigned = !!fp.self_signed;
+  currentSessionScores = {};
+  var canSign = selfSigned && !fp.completed;
 
   var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;"><button class="btn-back" style="margin-bottom:0" onclick="backFromFloorCompAdmin()">&#8592; Back to Dashboard</button>';
   html += '<button onclick="exportFloorCompPDF(\''+uid+'\',\''+esc(u.email)+'\')" style="padding:9px 18px;background:white;color:var(--navy);border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">&#x1F4C4; Export PDF</button></div>';
@@ -2207,6 +2209,9 @@ async function renderFloorCompFormAdmin(u, uid, fck, fp) {
     html += '<th style="background:var(--mid);color:#fff;padding:10px 12px;text-align:center;font-size:11px;">';
     html += 'SESSION '+(si+1)+'<br><span style="font-weight:400;font-size:10px">'+esc(s.name)+'<br>'+(s.date?(s.date.includes('T')?new Date(s.date).toLocaleDateString():new Date(s.date+'T00:00:00').toLocaleDateString()):'')+'</span></th>';
   });
+  if (canSign) {
+    html += '<th style="background:#065f46;color:#fff;padding:10px 12px;text-align:center;font-size:11px;">NEW SESSION<br><span style="font-weight:400;font-size:10px">Admin scores</span></th>';
+  }
   html += '</tr></thead><tbody>';
 
   fc.items.forEach(function(item, i) {
@@ -2228,6 +2233,12 @@ async function renderFloorCompFormAdmin(u, uid, fck, fp) {
       }
       html += '</td>';
     });
+    if (canSign) {
+      html += '<td style="padding:6px;border:1px solid #e2e8f0;text-align:center">';
+      html += '<select id="ss_score_'+i+'" onchange="setSessionScore('+i+',this.value,&quot;score&quot;)" style="width:50px;padding:3px;border:1px solid var(--border);border-radius:4px;font-size:12px"><option value="">-</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>';
+      html += '<br><select id="ss_method_'+i+'" onchange="setSessionScore('+i+',this.value,&quot;method&quot;)" style="width:50px;padding:3px;border:1px solid var(--border);border-radius:4px;font-size:12px;margin-top:2px"><option value="">M-</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>';
+      html += '</td>';
+    }
     html += '</tr>';
   });
   html += '</tbody></table></div>';
@@ -2245,6 +2256,21 @@ async function renderFloorCompFormAdmin(u, uid, fck, fp) {
       if (s.sig_img) html += '<img src="'+s.sig_img+'" style="height:36px;max-width:120px;object-fit:contain;margin-left:auto;border-radius:4px" alt="sig">';
       html += '</div>';
     });
+    html += '</div></div>';
+  }
+
+  // Admin sign-off (training session + mark complete)
+  if (!fp.completed) {
+    html += '<div class="val-section"><div class="val-hdr"><h3>Admin Sign-Off</h3><p>Sign as a trainer on behalf of the facility. Enter scores in the NEW SESSION column above, then add the session.</p></div>';
+    html += '<div style="padding:20px 24px;display:flex;flex-wrap:wrap;gap:10px;align-items:center">';
+    if (selfSigned) {
+      html += '<button onclick="openFloorSupervisorModal()" style="padding:10px 22px;background:var(--mid);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">&#x270D; Add Supervisor Session</button>';
+      if (sessions.length > 0) {
+        html += '<button onclick="markFloorCompComplete()" style="padding:10px 22px;background:var(--green);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">&#x2705; Mark as Complete</button>';
+      }
+    } else {
+      html += '<p style="font-size:13px;color:var(--muted)">The employee must sign their self-assessment before training sessions can be added.</p>';
+    }
     html += '</div></div>';
   }
 
@@ -2547,11 +2573,27 @@ async function submitFloorEmpSig() {
   setTimeout(renderFloorCompForm, 600);
 }
 
+// When an admin is viewing someone else's Position Based Competency, actions apply to THAT employee
+function _floorIsAdminActing() {
+  return !!(_floorAdminView && currentUser && currentUser.role === 'admin' && currentFormUser);
+}
+function _floorTargetUid() {
+  if (_floorIsAdminActing()) return currentFormUser.id || currentFormUser.email;
+  return currentUser.id || currentUser.email;
+}
+function _floorRefresh() {
+  if (_floorIsAdminActing()) {
+    viewStaffFloorComp(currentFormUser.id || currentFormUser.email, currentFormUser.email);
+  } else {
+    renderFloorCompForm();
+  }
+}
+
 // Supervisor session modal
 function openFloorSupervisorModal() {
   _floorValMode = true;
   _hasSigned.val = false;
-  document.getElementById('valSigName').value = '';
+  document.getElementById('valSigName').value = _floorIsAdminActing() ? (currentUser.name || '') : '';
   document.getElementById('valSessionDate').value = '';
   document.getElementById('valDateField').style.display = 'block';
   document.getElementById('valModal').style.display = 'flex';
@@ -2567,7 +2609,7 @@ async function submitFloorSupervisorSession() {
 
   var canvas = document.getElementById('valCanvas');
   var sigImg = canvas ? canvas.toDataURL('image/png') : '';
-  var uid = currentUser.id || currentUser.email;
+  var uid = _floorTargetUid();
   var fp = await getFloorCompProgress(uid, currentFloorCompKey);
   var sessions = fp.sessions ? JSON.parse(fp.sessions) : [];
 
@@ -2585,24 +2627,27 @@ async function submitFloorSupervisorSession() {
   clearCanvas('valCanvas');
   currentSessionScores = {};
   toast('Session added!', true);
-  setTimeout(renderFloorCompForm, 600);
+  setTimeout(_floorRefresh, 600);
 }
 
 async function markFloorCompComplete() {
-  var uid = currentUser.id || currentUser.email;
+  var uid = _floorTargetUid();
   var fp = await getFloorCompProgress(uid, currentFloorCompKey);
   var sessions = fp.sessions ? JSON.parse(fp.sessions) : [];
   if (sessions.length === 0) {
     toast('At least one training session must be added before marking complete.');
     return;
   }
-  if (!confirm('Mark this position competency as complete? Make sure all training sessions have been added.')) return;
+  var fcDef = FLOOR_COMPS[currentFloorCompKey];
+  var allScored = !fcDef || fcDef.items.every(function(_, i){ return sessions.some(function(s){ return s.scores && s.scores[i] && s.scores[i].score; }); });
+  var confirmMsg = allScored ? 'Mark this position competency as complete? Make sure all training sessions have been added.' : 'Not every item has a trainer score yet. Mark this position competency as complete anyway?';
+  if (!confirm(confirmMsg)) return;
   await saveFloorCompProgress(uid, currentFloorCompKey, {
     completed: true,
     completed_at: new Date().toISOString()
   });
   toast('Position competency marked complete!', true);
-  setTimeout(renderFloorCompForm, 600);
+  setTimeout(_floorRefresh, 600);
 }
 
 function backFromFloorComp() {
