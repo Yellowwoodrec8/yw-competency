@@ -199,6 +199,7 @@ tbody td{padding:13px 16px;font-size:13px;vertical-align:middle;}
   .print-sig-box .date{font-size:8pt;color:#555;margin-top:2pt;}
   .print-legend{font-size:7.5pt;color:#666;margin-top:8pt;border-top:.5pt solid #ddd;padding-top:6pt;}
   tr{page-break-inside:avoid;}
+  .print-test-break{page-break-before:always;break-before:page;}
 }
 .help-btn{background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:18px;padding:6px;width:100%;text-align:left;display:flex;align-items:center;gap:8px;font-family:inherit;font-size:13px;font-weight:500;margin-top:4px;border-radius:6px;transition:all .15s;}
 .help-btn:hover{color:#fff;background:rgba(255,255,255,.08);}
@@ -1346,11 +1347,20 @@ async function renderAdmin() {
     html += '<p style="padding:20px;font-size:13px;color:var(--muted)">No test attempts yet.</p>';
   } else {
     html += '<table><thead><tr><th>Employee</th><th>Test</th><th>Status</th><th>Best Score</th><th>Attempts</th><th>Last Taken</th><th></th></tr></thead><tbody>';
+    var lastUid = null;
     testScores.forEach(function(item) {
+      if (item.uid !== lastUid) {
+        lastUid = item.uid;
+        var n = testScores.filter(function(x){ return x.uid === item.uid; }).length;
+        html += '<tr style="background:#f1f5f9"><td colspan="7" style="padding:10px 14px"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">';
+        html += '<div><strong>'+esc(item.u.name)+'</strong> <span style="font-size:11px;color:var(--muted)">&middot; '+(POS_LABELS[item.u.position]||item.u.position)+' &middot; '+n+' test'+(n===1?'':'s')+' taken</span></div>';
+        html += '<button onclick="exportAllTestsPDF(&quot;'+item.uid+'&quot;,&quot;'+item.u.email+'&quot;)" style="padding:7px 14px;background:var(--navy);color:#fff;border:none;border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">&#x2B07; Export All '+n+' Test'+(n===1?'':'s')+' (one PDF)</button>';
+        html += '</div></td></tr>';
+      }
       var passed = item.tp.passed;
       var badge = passed ? '<span class="badge b-green">Passed</span>' : '<span class="badge b-amber">Not Passed</span>';
       html += '<tr>';
-      html += '<td><strong>'+esc(item.u.name)+'</strong><br><span style="font-size:11px;color:var(--muted)">'+(POS_LABELS[item.u.position]||item.u.position)+'</span></td>';
+      html += '<td style="color:var(--muted);font-size:12px">&#x21B3;</td>';
       html += '<td style="font-size:12px">'+(TESTS[item.tk]?TESTS[item.tk].label:item.tk)+'</td>';
       html += '<td>'+badge+'</td>';
       html += '<td style="font-size:13px;font-weight:700;color:'+(passed?'var(--green)':'var(--red)')+'">'+( item.tp.best_score||0)+'%</td>';
@@ -2655,11 +2665,9 @@ function backFromFloorComp() {
 }
 
 // -- TEST PDF EXPORT -----------------------------------------
-async function exportTestPDF(uid, email, tk) {
-  var u = USE_SUPABASE ? (await sbGetOne('profiles', 'id=eq.'+uid)) : LOCAL_DB.users[email];
-  if (!u) return;
-  var test = TESTS[tk]; if (!test) return;
-  var tp = await getTestProgress(uid, tk);
+function buildTestPrintHtml(u, tk, tp) {
+  var test = TESTS[tk]; if (!test) return '';
+  tp = tp || {};
   var answers = tp.answers ? JSON.parse(tp.answers) : {};
 
   var html = '';
@@ -2703,12 +2711,70 @@ async function exportTestPDF(uid, email, tk) {
     html += '</tr>';
   });
   html += '</tbody></table>';
+  return html;
+}
 
+// Show html in the print area, open the print dialog, then restore the app. docTitle becomes the suggested PDF file name.
+function printHtmlArea(html, docTitle) {
   var pa = document.getElementById('printArea');
+  var oldTitle = document.title;
+  if (docTitle) document.title = docTitle;
   pa.innerHTML = html; pa.style.display = 'block';
   document.getElementById('appScreen').style.display = 'none';
   window.print();
-  setTimeout(function(){ pa.style.display='none'; document.getElementById('appScreen').style.display='block'; }, 500);
+  setTimeout(function(){
+    pa.style.display='none';
+    document.getElementById('appScreen').style.display='block';
+    document.title = oldTitle;
+  }, 500);
+}
+
+async function exportTestPDF(uid, email, tk) {
+  var u = USE_SUPABASE ? (await sbGetOne('profiles', 'id=eq.'+uid)) : LOCAL_DB.users[email];
+  if (!u) return;
+  if (!TESTS[tk]) return;
+  var tp = await getTestProgress(uid, tk);
+  printHtmlArea(buildTestPrintHtml(u, tk, tp));
+}
+
+// Export every test this employee has taken as ONE document (summary page + one page-set per test)
+async function exportAllTestsPDF(uid, email) {
+  var u = USE_SUPABASE ? (await sbGetOne('profiles', 'id=eq.'+uid)) : LOCAL_DB.users[email];
+  if (!u) { toast('Staff member not found.'); return; }
+  var keys = POS_TESTS[u.position] || [];
+  var taken = [];
+  for (var i = 0; i < keys.length; i++) {
+    if (!TESTS[keys[i]]) continue;
+    var tp = await getTestProgress(uid, keys[i]);
+    if (tp && (tp.attempts||0) > 0) taken.push({ tk: keys[i], tp: tp });
+  }
+  if (!taken.length) { toast('No test attempts to export for ' + u.name + '.'); return; }
+
+  // Summary page
+  var html = '<div class="print-header"><h1>Yellow Wood Recovery -- Knowledge Test Summary</h1><p>All test results for '+esc(u.name)+'</p></div>';
+  html += '<div class="print-info-grid">';
+  html += '<div class="print-info-field"><div class="lbl">Employee Name</div><div class="val">'+esc(u.name)+'</div></div>';
+  html += '<div class="print-info-field"><div class="lbl">Position</div><div class="val">'+(POS_LABELS[u.position]||u.position)+'</div></div>';
+  html += '<div class="print-info-field"><div class="lbl">Tests Taken</div><div class="val">'+taken.length+'</div></div>';
+  html += '<div class="print-info-field"><div class="lbl">Date Printed</div><div class="val">'+new Date().toLocaleDateString()+'</div></div>';
+  html += '</div>';
+  html += '<table class="print-table"><thead><tr><th style="width:46%">Test</th><th style="width:14%;text-align:center">Status</th><th style="width:14%;text-align:center">Best Score</th><th style="width:12%;text-align:center">Attempts</th><th style="width:14%;text-align:center">Last Taken</th></tr></thead><tbody>';
+  taken.forEach(function(t) {
+    var col = t.tp.passed ? '#065f46' : '#dc2626';
+    html += '<tr><td>'+esc(TESTS[t.tk].label)+'</td>';
+    html += '<td style="text-align:center;font-weight:700;color:'+col+'">'+(t.tp.passed?'PASSED':'NOT PASSED')+'</td>';
+    html += '<td style="text-align:center;font-weight:700">'+(t.tp.best_score||0)+'%</td>';
+    html += '<td style="text-align:center">'+(t.tp.attempts||0)+'</td>';
+    html += '<td style="text-align:center">'+(t.tp.last_taken?new Date(t.tp.last_taken).toLocaleDateString():'')+'</td></tr>';
+  });
+  html += '</tbody></table>';
+
+  // Each test starts on a new page
+  taken.forEach(function(t) {
+    html += '<div class="print-test-break">' + buildTestPrintHtml(u, t.tk, t.tp) + '</div>';
+  });
+
+  printHtmlArea(html, u.name + ' - Knowledge Test Results');
 }
 
 // -- PDF EXPORT -------------------------------------------
